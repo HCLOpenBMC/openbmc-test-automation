@@ -1,0 +1,44 @@
+#test_boot_devices
+
+-i Set_The_Boot_Source_As_Default_Using_REST_API
+-i Set_The_Boot_Source_As_Default_Using_Ipmitool
+-i Set_The_Boot_Source_As_Network_Using_REST_API
+-i Set_The_Boot_Source_As_Network_Using_Ipmitool
+-i Set_The_Boot_Source_As_Disk_Using_REST_API
+-i Set_The_Boot_Source_As_Disk_Using_Ipmitool
+-i Set_The_Boot_Source_As_CDROM_Using_REST_API
+-i Set_The_Boot_Source_As_CDROM_Using_Ipmitool
+-i Set_The_Boot_Mode_As_Setup_Using_REST_API
+-i Set_The_Boot_Mode_As_Setup_Using_Ipmitool
+
+#test_boot_policies
+
+-i Set_Boot_Policy_To_ONETIME_via_REST
+-i Set_Boot_Policy_To_PERMANENT_via_REST
+-i Set_Boot_Policy_To_ONETIME_via_IPMITOOL
+-i Set_Boot_Policy_To_PERMANENT_via_IPMITOOL
+-i Test_Boot_Order_via_REST
+
+#test_hardware_Sensors
+
+-i Verify_Fan_Sensor_Attributes
+-i Verify_Power_Redundancy_Using_REST
+-i Verify_Power_Redundancy_Using_IPMI
+
+#test_inventory
+
+-i Verify_System_Inventory_Path
+
+#test_rest_interfaces 
+
+-i REST_Login_Session_To_BMC
+-i Multiple_Requests_On_BMC_Using_Single_REST_Session
+-i Verify_REST_JSON_Data_On_Success
+-i Verify_REST_JSON_Data_On_Failure
+-i Verify_REST_Get_Message_JSON_Compliant
+-i REST_Put_Message_JSON_Format_Compliance_Test
+-i REST_Logout_Session_To_BMC
+
+#test_xit
+
+-i Verify_No_BMC_Dump
