@@ -1,3 +1,7 @@
+#test_ssl
+
+-i Test_SSL_Connection
+
 #test_boot_devices
 
 -i Set_The_Boot_Source_As_Default_Using_REST_API
@@ -22,6 +26,7 @@
 #test_hardware_Sensors
 
 -i Verify_Fan_Sensor_Attributes
+-i Verify_Power_Sensor_Attributes
 -i Verify_Power_Redundancy_Using_REST
 -i Verify_Power_Redundancy_Using_IPMI
 
@@ -39,6 +44,3 @@
 -i REST_Put_Message_JSON_Format_Compliance_Test
 -i REST_Logout_Session_To_BMC
 
-#test_xit
-
--i Verify_No_BMC_Dump

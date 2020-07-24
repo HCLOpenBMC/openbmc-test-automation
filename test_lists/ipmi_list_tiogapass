@@ -1,0 +1,33 @@
+#test_ipmi_chassis
+
+-i IPMI_Chassis_Status_On
+-i Verify_Host_PowerOn_Via_IPMI
+
+#test_ipmi_cipher
+
+-i Verify_Supported_Ciphers
+-i Verify_Unsupported_Ciphers
+-i Verify_Supported_Ciphers_Via_Lan_Print
+-i Verify_Supported_Cipher_Via_Getciphers
+
+#test_ipmi_general 
+
+-i Verify_Get_DCMI_Capabilities
+
+#test_ipmi_network_verification
+
+-i Retrieve_IP_Address_Via_IPMI_And_Verify_Using_Redish
+-i Retrieve_Default_Gateway_Via_IPMI_And_Verify
+-i Retrieve_MAC_Address_Via_IPMI_And_Verify_Using_Redfish
+-i Test_Valid_IPMI_Channels_Supported
+-i Get_IP_Address_Source_And_Verify_Using_Redfish
+
+#test_ipmi_payload
+
+-i Test_Get_Payload_Activation_Status
+
+#test_ipmi_sel
+
+-i Verify_IPMI_SEL_Version
+
+
