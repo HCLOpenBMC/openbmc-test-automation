@@ -41,6 +41,14 @@ Redfish BMC Code Update
     ${image_version}=  Get Version Tar  ${IMAGE_FILE_PATH}
     Rprint Vars  image_version
 
+    ${bmc_release_info}=  Get BMC Release Info
+    ${functional_version}=  Set Variable  ${bmc_release_info['version_id']}
+    Rprint Vars  functional_version
+
+    # Check if the existing firmware is functional.
+    Pass Execution If  '${functional_version}' == '${image_version}'
+    ...  The existing ${image_version} firmware is already functional.
+
     Run Keyword If  not ${FORCE_UPDATE}
     ...  Activate Existing Firmware  ${image_version}
     Redfish Update Firmware
@@ -53,7 +61,7 @@ Suite Setup Execution
     Redfish.Login
     # Delete BMC dump and Error logs.
     Delete All BMC Dump
-    Redfish Purge Event Log
+    Run Keyword And Ignore Error  Redfish Purge Event Log
     # Checking for file existence.
     Valid File Path  IMAGE_FILE_PATH
 
