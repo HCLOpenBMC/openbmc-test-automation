@@ -125,9 +125,21 @@ class resource_variables():
     xpath_login_button = "//button[@type='submit']"
     xpath_logout_button = "//button[@id='app-header-logout']"
 
+    # xpath for overview menu
+    xpath_overview_menu = "//a[@href='#/']"
+
+    # xpath for health menu
+    xpath_health_menu = "//button[@aria-controls='health-menu']"
+    xpath_event_logs_sub_menu = "//a[@href='#/health/event-logs']"
+    xpath_sensor_sub_menu = "//a[@href='#/health/sensors']"
+
     # xpath for control menu
     xpath_control_menu = "//button[@aria-controls='control-menu']"
     xpath_manage_power_usage_sub_menu = "//a[@href='#/control/manage-power-usage']"
     xpath_reboot_bmc_sub_menu = "//a[@href='#/control/reboot-bmc']"
     xpath_server_led_sub_menu = "//a[@href='#/control/server-led']"
     xpath_server_power_operations_sub_menu = "//a[@href='#/control/server-power-operations']"
+
+    # xpath for configuration menu
+    xpath_server_configuration = "//button[@aria-controls='configuration-menu']"
+    xpath_select_network_settings = "//a[@href='#/configuration/network-settings']"
