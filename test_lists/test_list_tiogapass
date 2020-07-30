@@ -27,6 +27,8 @@
 
 -i Verify_Fan_Sensor_Attributes
 -i Verify_Power_Sensor_Attributes
+-i Verify_Current_Sensor_Attributes
+-i Verify_Voltage_Sensor_Attributes
 -i Verify_Power_Redundancy_Using_REST
 -i Verify_Power_Redundancy_Using_IPMI
 
