@@ -123,10 +123,12 @@ class resource_variables():
 
     # New GUI variables
     xpath_login_button = "//button[@type='submit']"
-    xpath_logout_button = "//button[@id='app-header-logout']"
+    xpath_logout_button = "//*[@data-test-id='appHeader-link-logout']"
 
     # xpath for overview menu
     xpath_overview_menu = "//a[@href='#/']"
+    xpath_root_button_menu = "//*[@id='app-header-user__BV_toggle_']"
+    xpath_profile_settings = "//a[@href='#/profile-settings']"
 
     # xpath for health menu
     xpath_health_menu = "//button[@aria-controls='health-menu']"
@@ -140,13 +142,15 @@ class resource_variables():
     xpath_server_led_sub_menu = "//a[@href='#/control/server-led']"
     xpath_server_power_operations_sub_menu = "//a[@href='#/control/server-power-operations']"
     xpath_sol_sub_menu = "//a[@href='#/control/serial-over-lan']"
+    xpath_kvm_sub_menu = "//a[@href='#/control/kvm']"
 
     # xpath for configuration menu
     xpath_server_configuration = "//button[@aria-controls='configuration-menu']"
     xpath_select_network_settings = "//a[@href='#/configuration/network-settings']"
+    xpath_date_time_settings_sub_menu = "//a[@href='#/configuration/date-time-settings']"
 
     # xpath for access control menu
-    xpath_access_control_menu = "//button[@aria-controls='access-control-menu']"
+    xpath_access_control_menu = "//*[@data-test-id='nav-button-accessControl']"
     xpath_ldap_sub_menu = "//a[@href='#/access-control/ldap']"
     xpath_save_settings_button = "//button[contains(text(),'Save settings')]"
     xpath_local_user_management_sub_menu = "//a[@href='#/access-control/local-user-management']"
