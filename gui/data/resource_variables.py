@@ -132,13 +132,17 @@ class resource_variables():
     xpath_root_button_menu = "//*[@id='app-header-user__BV_toggle_']"
     xpath_profile_settings = "//a[@href='#/profile-settings']"
     xpath_server_health_header = "//*[@data-test-id='appHeader-container-health']"
-    xpath_event_header = "//h1[text()="Event logs"]"
+    xpath_event_header = "//h1[text()='Event logs']"
     xpath_server_power_header = "//*[@data-test-id='appHeader-container-power']"
+    xpath_refresh_button = "//*[@data-test-id='appHeader-button-refresh']"
+    xpath_network_page_header = "//h1[contains(text(), 'Network settings')]"
+    xpath_sol_header = "//h1[contains(text(), 'Serial over LAN console')]"
 
     # xpath for health menu
     xpath_health_menu = "//button[@aria-controls='health-menu']"
     xpath_event_logs_sub_menu = "//a[@href='#/health/event-logs']"
     xpath_sensor_sub_menu = "//a[@href='#/health/sensors']"
+    xpath_hardware_status_sub_menu = "//a[@href='#/health/hardware-status']"
 
     # xpath for control menu
     xpath_control_menu = "//button[@aria-controls='control-menu']"
@@ -153,6 +157,7 @@ class resource_variables():
     xpath_server_configuration = "//button[@aria-controls='configuration-menu']"
     xpath_select_network_settings = "//a[@href='#/configuration/network-settings']"
     xpath_date_time_settings_sub_menu = "//a[@href='#/configuration/date-time-settings']"
+    xpath_firmware_update_sub_menu = "//a[@href='#/configuration/firmware']"
 
     # xpath for access control menu
     xpath_access_control_menu = "//*[@data-test-id='nav-button-accessControl']"
