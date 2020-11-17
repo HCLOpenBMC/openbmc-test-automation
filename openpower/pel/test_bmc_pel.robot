@@ -26,10 +26,24 @@ ${CMD_PROCEDURAL_SYMBOLIC_FRU_CALLOUT}  busctl call xyz.openbmc_project.Logging 
 ...  xyz.openbmc_project.Logging.Create Create ssa{ss} org.open_power.Logging.Error.TestError1
 ...  xyz.openbmc_project.Logging.Entry.Level.Error 0
 
+${CMD_INFORMATIONAL_ERROR}  busctl call xyz.openbmc_project.Logging /xyz/openbmc_project/logging
+...  xyz.openbmc_project.Logging.Create Create ssa{ss} xyz.openbmc_project.Common.Error.TestError2
+...  xyz.openbmc_project.Logging.Entry.Level.Informational 0
+
 ${CMD_INVENTORY_PREFIX}  busctl get-property xyz.openbmc_project.Inventory.Manager
 ...  /xyz/openbmc_project/inventory/system/chassis/motherboard
 
+${CMD_UNRECOVERABLE_ERROR}  busctl call xyz.openbmc_project.Logging /xyz/openbmc_project/logging
+...  xyz.openbmc_project.Logging.Create Create ssa{ss} xyz.openbmc_project.Common.Error.InternalFailure
+...  xyz.openbmc_project.Logging.Entry.Level.Error 0
+
+${CMD_PREDICTIVE_ERROR}  busctl call xyz.openbmc_project.Logging /xyz/openbmc_project/logging
+...  xyz.openbmc_project.Logging.Create Create ssa{ss} xyz.openbmc_project.Common.Error.InternalFailure
+...   xyz.openbmc_project.Logging.Entry.Level.Warning 0
+
 @{mandatory_pel_fileds}   Private Header  User Header  Primary SRC  Extended User Header  Failing MTMS
+
+${info_log_max_usage_percentage}  15
 
 
 *** Test Cases ***
@@ -354,7 +368,7 @@ Verify Procedure And Symbolic FRU Callout
     Valid Value  pel_callout_section['Callouts'][0]['FRU Type']  ['Maintenance Procedure Required']
     Should Contain  ${pel_callout_section['Callouts'][0]['Priority']}  Mandatory
     # Verify if "Procedure Number" field of PEL has an alphanumeric value.
-    Should Match Regexp  ${pel_callout_section['Callouts'][0]['Procedure Number']}  [a-zA-Z0-9]
+    Should Match Regexp  ${pel_callout_section['Callouts'][0]['Procedure']}  [a-zA-Z0-9]
 
     # Verify procedural callout info.
 
@@ -424,7 +438,183 @@ Verify Delete All PEL
     Should Be Empty  ${pel_ids}
 
 
+Verify Informational Error Log
+    [Documentation]  Create an informational error log and verify.
+    [Tags]  Verify_Informational_Error_Log
+
+    Redfish Purge Event Log
+    # Create an informational error log.
+    BMC Execute Command  ${CMD_INFORMATIONAL_ERROR}
+    ${pel_records}=  Peltool  -lfh
+
+    # An example of information error log data:
+    # {
+    #    "0x500006A0": {
+    #            "SRC": "BD8D1002",
+    #            "Message": "An application had an internal failure",
+    #            "PLID": "0x500006A0",
+    #            "CreatorID": "BMC",
+    #            "Subsystem": "BMC Firmware",
+    #            "Commit Time": "10/14/2020 11:41:38",
+    #            "Sev": "Informational Event",
+    #            "CompID": "0x1000"
+    #    }
+    # }
+
+    ${ids}=  Get Dictionary Keys  ${pel_records}
+    ${id}=  Get From List  ${ids}  0
+    Should Contain  ${pel_records['${id}']['Sev']}  Informational
+
+
+Verify Predictable Error Log
+    [Documentation]  Create a predictive error and verify.
+    [Tags]  Verify_Predictable_Error_Log
+
+    # Create a predictable error log.
+    BMC Execute Command  ${CMD_PREDICTIVE_ERROR}
+    ${pel_records}=  Peltool  -l
+
+    # An example of predictive error log data:
+    # {
+    #    "0x5000069E": {
+    #            "SRC": "BD8D1002",
+    #            "Message": "An application had an internal failure",
+    #            "PLID": "0x5000069E",
+    #            "CreatorID": "BMC",
+    #            "Subsystem": "BMC Firmware",
+    #            "Commit Time": "10/14/2020 11:40:07",
+    #            "Sev": "Predictive Error",
+    #            "CompID": "0x1000"
+    #    }
+    # }
+
+    ${pel_ids}=  Get PEL Log Via BMC CLI
+    ${id}=  Get From List  ${pel_ids}  -1
+    Should Contain  ${pel_records['${id}']['Sev']}  Predictive
+
+
+Verify Unrecoverable Error Log
+    [Documentation]  Create an unrecoverable error and verify.
+    [Tags]  Verify_Unrecoverable_Error_Log
+
+    # Create an internal failure error log.
+    BMC Execute Command  ${CMD_UNRECOVERABLE_ERROR}
+    ${pel_records}=  Peltool  -l
+
+    # An example of unrecoverable error log data:
+    # {
+    #    "0x50000CC5": {
+    #            "SRC": "BD8D1002",
+    #            "Message": "An application had an internal failure",
+    #            "PLID": "0x50000CC5",
+    #            "CreatorID": "BMC",
+    #            "Subsystem": "BMC Firmware",
+    #            "Commit Time": "04/01/2020 16:44:55",
+    #            "Sev": "Unrecoverable Error",
+    #            "CompID": "0x1000"
+    #    }
+    # }
+
+    ${pel_ids}=  Get PEL Log Via BMC CLI
+    ${id}=  Get From List  ${pel_ids}  -1
+    Should Contain  ${pel_records['${id}']['Sev']}  Unrecoverable
+
+
+Verify Informational Error Log Size When Error Log Exceeds Limit
+    [Documentation]  Verify informational error log size when informational log size exceeds limit.
+    [Tags]  Verify_Informational_Error_Log_Error_Log_When_Size_Exceeds_Limit
+
+    # Initially remove all logs.
+    Redfish Purge Event Log
+
+    # Create 3001 information logs.
+    FOR  ${LOG_COUNT}  IN RANGE  0  3001
+      BMC Execute Command  ${CMD_INFORMATIONAL_ERROR}
+    END
+
+    # Delay for BMC to perform log compression when log size exceeds.
+    Sleep  10s
+
+    # Check logsize and verify that disk usage is around 15%.
+    ${usage_percent}=  Get Disk Usage For Error Logs
+    ${percent_diff}=  Evaluate  ${usage_percent} - ${info_log_max_usage_percentage}
+    ${percent_diff}=   Evaluate  abs(${percent_diff})
+    Should Be True  ${percent_diff} <= 0.5
+
+
+Verify Reverse Order Of PEL Logs
+    [Documentation]  Verify PEL command to output PEL logs in reverse order.
+    [Tags]  Verify_Reverse_PEL_Logs
+
+    Redfish Purge Event Log
+    BMC Execute Command  ${CMD_UNRECOVERABLE_ERROR}
+    BMC Execute Command  ${CMD_PREDICTIVE_ERROR}
+
+    ${pel_records}=  Peltool  -rl
+    ${pel_ids}=  Get Dictionary Keys   ${pel_records}   False
+
+    Should Be True  ${pel_ids}[0] > ${pel_ids}[1]
+
+
+Verify Total PEL Count
+    [Documentation]  Verify total PEL count returned by peltool command.
+    [Tags]  Verify_Total_PEL_Count
+
+    # Initially remove all logs.
+    Redfish Purge Event Log
+
+    # Generate a random number between 1-20.
+    ${random}=  Evaluate  random.randint(1, 20)  modules=random
+
+    # Generate predictive error log multiple times.
+    FOR  ${count}  IN RANGE  0  ${random}
+      BMC Execute Command  ${CMD_PREDICTIVE_ERROR}
+    END
+
+    # Check PEL log count via peltool command and compare it with actual generated log count.
+    ${pel_records}=  peltool  -n
+
+    Should Be Equal  ${pel_records['Number of PELs found']}   ${random}
+
+
+Verify Listing Information Error
+    [Documentation]  Verify that information error logs can only be listed using -lfh option of peltool.
+    [Tags]  Verify_Listing_Information_Error
+
+    # Initially remove all logs.
+    Redfish Purge Event Log
+    BMC Execute Command  ${CMD_INFORMATIONAL_ERROR}
+
+    # Generate informational logs and verify that it would not get listed by peltool's list command.
+    ${pel_records}=  peltool  -l
+    ${pel_ids}=  Get PEL Log Via BMC CLI
+    ${id}=  Get From List  ${pel_ids}  -1
+    Should Not Contain  ${pel_records['${id}']['Sev']}  Informational
+
+    # Verify that information logs get listed using peltool's list command with -lfh option.
+    ${pel_records}=  peltool  -lfh
+    ${pel_ids}=  Get PEL Log Via BMC CLI
+    ${id}=  Get From List  ${pel_ids}  -1
+    Should Contain  ${pel_records['${id}']['Sev']}  Informational
+
+
 *** Keywords ***
+
+Get Disk Usage For Error Logs
+    [Documentation]  Get disk usage percentage for error logs.
+
+    ${usage_output}  ${stderr}  ${rc}=  BMC Execute Command  du /var/lib/phosphor-logging/errors
+
+    ${usage_output}=  Fetch From Left  ${usage_output}  \/
+
+    # Covert disk usage unit from KB to MB.
+    ${usage_output}=  Evaluate  ${usage_output} / 1024
+
+    # Logging disk capacity limit is set to 20MB. So calculating the log usage percentage.
+    ${usage_percent}=  Evaluate  ${usage_output} / 20 * 100
+
+    [return]  ${usage_percent}
+
 
 Create Test PEL Log
     [Documentation]  Generate test PEL log.

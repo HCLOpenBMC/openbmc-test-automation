@@ -21,6 +21,10 @@ Create User Initiated Dump
     #                      returned if out of dump space was
     #                      detected when creating the dump.
 
+    ${resp}=  OpenBMC Get Request  ${DUMP_URI}
+    Run Keyword If  '${resp.status_code}' == '${HTTP_NOT_FOUND}'
+    ...  Set Test Variable  ${DUMP_URI}  /xyz/openbmc_project/dump/
+
     ${data}=  Create Dictionary  data=@{EMPTY}
     ${resp}=  OpenBMC Post Request
     ...  ${DUMP_URI}action/CreateDump  data=${data}  quiet=${1}
@@ -108,6 +112,10 @@ Check Dump Existence
     # dump_id  An integer value that identifies a particular dump
     #          object(e.g. 1, 3, 5).
 
+    ${resp}=  OpenBMC Get Request  ${DUMP_URI}
+    Run Keyword If  '${resp.status_code}' == '${HTTP_NOT_FOUND}'
+    ...  Set Test Variable  ${DUMP_ENTRY_URI}  /xyz/openbmc_project/dump/entry/
+
     ${resp}=  OpenBMC Get Request  ${DUMP_ENTRY_URI}${dump_id}
     Should Be Equal As Strings  ${resp.status_code}  ${HTTP_OK}
 
@@ -119,6 +127,10 @@ Delete BMC Dump
     # Description of Argument(s):
     # dump_id  An integer value that identifies a particular dump (e.g. 1, 3).
 
+    ${resp}=  OpenBMC Get Request  ${DUMP_URI}
+    Run Keyword If  '${resp.status_code}' == '${HTTP_NOT_FOUND}'
+    ...  Set Test Variable  ${DUMP_ENTRY_URI}  /xyz/openbmc_project/dump/entry/
+
     ${data}=  Create Dictionary  data=@{EMPTY}
     ${resp}=  OpenBMC Post Request
     ...  ${DUMP_ENTRY_URI}${dump_id}/action/Delete  data=${data}
@@ -127,6 +139,10 @@ Delete BMC Dump
 
 Delete All Dumps
     [Documentation]  Delete all dumps.
+
+    ${resp}=  OpenBMC Get Request  ${DUMP_URI}
+    Run Keyword If  '${resp.status_code}' == '${HTTP_NOT_FOUND}'
+    ...  Set Test Variable  ${DUMP_ENTRY_URI}  /xyz/openbmc_project/dump/entry/
 
     # Check if dump entries exist, if not return.
     ${resp}=  OpenBMC Get Request  ${DUMP_ENTRY_URI}list  quiet=${1}
@@ -139,8 +155,33 @@ Delete All Dumps
         Delete BMC Dump  ${dump_id}
     END
 
+
+Redfish Delete BMC Dump
+    [Documentation]  Deletes a given BMC dump via Redfish..
+    [Arguments]  ${dump_id}
+
+    # Description of Argument(s):
+    # dump_id  An integer value that identifies a particular dump (e.g. 1, 3).
+
+    Redfish.Delete  /redfish/v1/Managers/bmc/LogServices/Dump/Entries/${dump_id}
+
+
+Redfish Delete All BMC Dumps
+    [Documentation]  Delete all BMC dumps via Redfish.
+
+    # Check if dump entries exist, if not return.
+    ${resp}=  Redfish.Get  /redfish/v1/Managers/bmc/LogServices/Dump/Entries
+    Return From Keyword If  ${resp.dict["Members@odata.count"]} == ${0}
+
+    Redfish.Post  /redfish/v1/Managers/bmc/LogServices/Dump/Actions/LogService.ClearLog
+
+
 Delete All BMC Dump
     [Documentation]  Delete all BMC dump entries using "DeleteAll" interface.
+
+    ${resp}=  OpenBMC Get Request  ${DUMP_URI}
+    Run Keyword If  '${resp.status_code}' == '${HTTP_NOT_FOUND}'
+    ...  Set Test Variable  ${DUMP_URI}  /xyz/openbmc_project/dump/
 
     ${data}=  Create Dictionary  data=@{EMPTY}
     ${resp}=  Openbmc Post Request  ${DUMP_URI}action/DeleteAll  data=${data}
@@ -148,6 +189,10 @@ Delete All BMC Dump
 
 Dump Should Not Exist
     [Documentation]  Verify that BMC dumps do not exist.
+
+    ${resp}=  OpenBMC Get Request  ${DUMP_URI}
+    Run Keyword If  '${resp.status_code}' == '${HTTP_NOT_FOUND}'
+    ...  Set Test Variable  ${DUMP_ENTRY_URI}  /xyz/openbmc_project/dump/entry/
 
     ${resp}=  OpenBMC Get Request  ${DUMP_ENTRY_URI}list  quiet=${1}
     Should Be Equal As Strings  ${resp.status_code}  ${HTTP_NOT_FOUND}
@@ -171,6 +216,10 @@ Check Existence Of BMC Dump File
 
 Get Dump Entries
     [Documentation]  Return dump entries list.
+
+    ${resp}=  OpenBMC Get Request  ${DUMP_URI}
+    Run Keyword If  '${resp.status_code}' == '${HTTP_NOT_FOUND}'
+    ...  Set Test Variable  ${DUMP_ENTRY_URI}  /xyz/openbmc_project/dump/entry/
 
     ${dump_entries}=  Get URL List  ${DUMP_ENTRY_URI}
     [Return]  ${dump_entries}

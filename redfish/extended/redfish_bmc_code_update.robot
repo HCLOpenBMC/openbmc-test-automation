@@ -50,8 +50,27 @@ Redfish BMC Code Update
     Pass Execution If  '${functional_version}' == '${image_version}'
     ...  The existing ${image_version} firmware is already functional.
 
-    Run Keyword If  not ${FORCE_UPDATE}
-    ...  Activate Existing Firmware  ${image_version}
+    # TODO: Replace with redfish ActiveSoftwareImage API.
+    #Run Keyword If  not ${FORCE_UPDATE}
+    #...  Activate Existing Firmware  ${image_version}
+
+    # Firmware inventory record of the given image version.
+    ${image_info}=  Get Software Inventory State By Version  ${image_version}
+
+    ${image_info_len}=  Get Length  ${image_info}
+
+    # REST delete the image to fresh code update for a given same image object
+    # which is already ACTIVE but on the alternate side. Irrespective of when
+    # REST is disabled in near future or the below operation fails, is purely
+    # done to give a chance.
+
+    Run Keyword If  '${image_info_len}' != 0
+    ...  Run Keywords  Print Timen
+    ...  The ${image_version} version is installed but not functional, try delete and continue firmware update.
+    ...    AND
+    ...  Run Keyword And Ignore Error
+    ...    Delete Software Object  /xyz/openbmc_project/software/${image_info['image_id']}
+
     Redfish Update Firmware
 
 
@@ -70,7 +89,8 @@ Suite Setup Execution
 
     Redfish.Login
     # Delete BMC dump and Error logs.
-    Delete All BMC Dump
+    Run Keyword And Ignore Error  Delete All BMC Dump
+    Run Keyword And Ignore Error  Redfish Delete All BMC Dumps
     Run Keyword And Ignore Error  Redfish Purge Event Log
     # Checking for file existence.
     Valid File Path  IMAGE_FILE_PATH
@@ -84,19 +104,20 @@ Redfish Firmware Update In Loop
     # update_loop_count    This value is used to run the firmware update in loop.
 
     ${before_image_state}=  Get BMC Functional Firmware
+    ${temp_update_loop_count}=  Evaluate  ${update_loop_count} + 1
 
-    FOR  ${count}  IN RANGE  ${update_loop_count}
+    FOR  ${count}  IN RANGE  1  ${temp_update_loop_count}
       Print Timen  **************************************
       Print Timen  * The Current Loop Count is ${count} of ${update_loop_count} *
       Print Timen  **************************************
       Redfish Update Firmware
       ${sw_inv}=  Get Functional Firmware  BMC update
-      ${nonfunctional_sw_inv}=  Get Non Fucntional Firmware  ${sw_inv}  False
+      ${nonfunctional_sw_inv}=  Get Non Functional Firmware  ${sw_inv}  False
       Run Keyword If  ${nonfunctional_sw_inv['functional']} == False
       ...  Set BMC Image Priority To Least  ${nonfunctional_sw_inv['version']}  ${nonfunctional_sw_inv}
       Redfish.Login
       ${sw_inv}=  Get Functional Firmware  BMC update
-      ${nonfunctional_sw_inv}=  Get Non Fucntional Firmware  ${sw_inv}  False
+      ${nonfunctional_sw_inv}=  Get Non Functional Firmware  ${sw_inv}  False
       Delete BMC Image
     END
 
@@ -108,7 +129,7 @@ Get BMC Functional Firmware
     [Documentation]  Get BMC functional firmware details.
 
     ${sw_inv}=  Get Functional Firmware  BMC update
-    ${sw_inv}=  Get Non Fucntional Firmware  ${sw_inv}  True
+    ${sw_inv}=  Get Non Functional Firmware  ${sw_inv}  True
 
     [Return]  ${sw_inv}
 
@@ -126,7 +147,7 @@ Get Functional Firmware
     [Return]  ${bmc_inv}
 
 
-Get Non Fucntional Firmware
+Get Non Functional Firmware
     [Documentation]  Get BMC non functional fimware details.
     [Arguments]  ${sw_inv}  ${functional_sate}
 

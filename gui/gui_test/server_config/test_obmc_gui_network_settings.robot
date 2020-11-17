@@ -4,6 +4,7 @@ Documentation   Test OpenBMC GUI "Network settings" sub-menu of
 ...             "Server configuration".
 
 Resource        ../../lib/resource.robot
+Resource        ../../../lib/bmc_network_utils.robot
 
 Suite Setup     Suite Setup Execution
 Suite Teardown  Close Browser
@@ -23,6 +24,8 @@ ${xpath_static_input_ip0}         //*[@data-test-id="networkSettings-input-stati
 ${xpath_add_static_ip}            //button[contains(text(),"Add static IP")]
 ${xpath_setting_success}          //*[contains(text(),"Successfully saved network settings.")]
 ${xpath_add_dns_server}           //button[contains(text(),"Add DNS server")]
+${xpath_network_interface}        //*[@data-test-id="networkSettings-select-interface"]
+${xpath_input_netmask_addr0}      //*[@data-test-id="networkSettings-input-subnetMask-0"]
 
 *** Test Cases ***
 
@@ -108,13 +111,46 @@ Verify System Section In Network Setting page
     [Tags]  Verify_System_Section
 
     ${host_name}=  Redfish_Utils.Get Attribute  ${REDFISH_NW_PROTOCOL_URI}  HostName
-    Textfield Value Should Be  ${xpath_hostname_input}  ${hos_name}
+    Textfield Value Should Be  ${xpath_hostname_input}  ${host_name}
 
     ${mac_address}=  Get BMC MAC Address
     Textfield Value Should Be   ${xpath_mac_address_input}  ${mac_address}
 
     ${default_gateway}=  Get BMC Default Gateway
     Textfield Value Should Be  ${xpath_default_gateway_input}  ${default_gateway}
+
+
+Verify Network Interface Details
+    [Documentation]  Verify network interface name in network setting page.
+    [Tags]  Verify_Network_Interface_Details
+
+    ${active_channel_config}=  Get Active Channel Config
+    ${ethernet_interface_redfish}=  Set Variable  ${active_channel_config['${CHANNEL_NUMBER}']['name']}
+    ${ethernet_interface_gui}=  Get Text  ${xpath_network_interface}
+    Should Contain  ${ethernet_interface_gui}  ${ethernet_interface_redfish}
+
+
+Verify Network Static IPv4 Details
+    [Documentation]  Verify network static IPv4 details.
+    [Tags]  Verify_Network_static_IPv4_Details
+
+    @{network_configurations}=  Get Network Configuration
+    FOR  ${network_configuration}  IN  @{network_configurations}
+      Textfield Value Should Be  ${xpath_static_input_ip0}  ${network_configuration["Address"]}
+      Textfield Value Should Be  ${xpath_input_netmask_addr0}  ${network_configuration['SubnetMask']}
+    END
+
+
+Configure Invalid Network Addresses And Verify
+    [Documentation]  Configure invalid network addresses and verify.
+    [Tags]  Configure_Invalid_Network_Addresses_And_Verify
+    [Template]  Configure Invalid Network Address And Verify
+
+    # locator                        invalid_address
+    ${xpath_mac_address_input}       A.A.A.A
+    ${xpath_default_gateway_input}   a.b.c.d
+    ${xpath_static_input_ip0}        a.b.c.d
+    ${xpath_input_netmask_addr0}     255.256.255.0
 
 
 *** Keywords ***
@@ -126,4 +162,19 @@ Suite Setup Execution
     Click Element  ${xpath_server_configuration}
     Click Element  ${xpath_select_network_settings}
     Wait Until Keyword Succeeds  30 sec  10 sec  Location Should Contain  network-settings
+
+
+
+Configure Invalid Network Address And Verify
+    [Documentation]  Configure invalid network address And verify.
+    [Arguments]  ${locator}  ${invalid_address}
+
+    # Description of the argument(s):
+    # locator            Xpath to identify an HTML element on a web page.
+    # invalid_address    Invalid address to be added.
+
+    Wait Until Page Contains Element  ${locator}
+    Input Text  ${locator}  ${invalid_address}
+    Click Element  ${xpath_network_save_settings}
+    Page Should Contain  Invalid format
 

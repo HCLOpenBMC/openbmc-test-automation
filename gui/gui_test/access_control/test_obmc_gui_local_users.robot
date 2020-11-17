@@ -16,6 +16,20 @@ ${xpath_account_policy}                  //button[contains(text(),'Account polic
 ${xpath_add_user}                        //button[contains(text(),'Add user')]
 ${xpath_edit_user}                       //button[@aria-label="Edit user"]
 ${xpath_delete_user}                     //button[@aria-label="Delete user"]
+${xpath_account_status_enabled_button}   //*[@data-test-id='localUserManagement-radioButton-statusEnabled']
+${xpath_account_status_disabled_button}  //*[@data-test-id='localUserManagement-radioButton-statusDisabled']
+${xpath_username_input_button}           //*[@data-test-id='localUserManagement-input-username']
+${xpath_privilege_list_button}           //*[@data-test-id='localUserManagement-select-privilege']
+${xpath_password_input_button}           //*[@data-test-id='localUserManagement-input-password']
+${xpath_password_confirm_button}         //*[@data-test-id='localUserManagement-input-passwordConfirmation']
+${xpath_cancel_button}                   //*[@data-test-id='localUserManagement-button-cancel']
+${xpath_submit_button}                   //*[@data-test-id='localUserManagement-button-submit']
+${xpath_add_user_heading}                //h5[contains(text(),'Add user')]
+${xpath_policy_settings_header}          //*[text()="Account policy settings"]
+${xpath_auto_unlock}                     //*[@data-test-id='localUserManagement-radio-automaticUnlock']
+${xpath_manual_unlock}                   //*[@data-test-id='localUserManagement-radio-manualUnlock']
+${xpath_max_failed_login}                //*[@data-test-id='localUserManagement-input-lockoutThreshold']
+${test_user_password}                    TestPwd1
 
 *** Test Cases ***
 
@@ -50,7 +64,99 @@ Verify Existence Of All Buttons In Local User Management Page
     Page Should Contain Button  ${xpath_delete_user}
 
 
+Verify Existence Of All Button And Fields In Add User
+    [Documentation]  Verify existence of all buttons and fields in add user page.
+    [Tags]  Verify_Existence_Of_All_Button_And_Fields_In_Add_User
+    [Teardown]  Click Element  ${xpath_cancel_button}
+
+    Click Element  ${xpath_add_user}
+    Wait Until Page Contains Element  ${xpath_add_user_heading}
+    Page Should Contain Element  ${xpath_account_status_enabled_button}
+    Page Should Contain Element  ${xpath_account_status_disabled_button}
+    Page Should Contain Element  ${xpath_username_input_button}
+    Page Should Contain Element  ${xpath_privilege_list_button}
+    Page Should Contain Element  ${xpath_password_input_button}
+    Page Should Contain Element  ${xpath_password_confirm_button}
+    Page Should Contain Element  ${xpath_cancel_button}
+    Page Should Contain Element  ${xpath_submit_button}
+
+
+Verify Existence Of All Buttons And Fields In Account Policy Settings
+    [Documentation]  Verify existence of all buttons and fields in account policy settings page.
+    [Tags]  Verify_Existence_Of_All_Buttons_And_Fields_In_Account_Policy_Settings
+    [Teardown]  Click Element  ${xpath_cancel_button}
+
+    Click Element  ${xpath_account_policy}
+    Wait Until Page Contains Element  ${xpath_policy_settings_header}
+    Page Should Contain Element  ${xpath_auto_unlock}
+    Page Should Contain Element  ${xpath_manual_unlock}
+    Page Should Contain Element  ${xpath_max_failed_login}
+    Page Should Contain Element  ${xpath_submit_button}
+    Page Should Contain Element  ${xpath_cancel_button}
+
+
+Verify User Access Privilege
+    [Documentation]  Create a new user with a priviledge and verify that user is created.
+    [Tags]  Verify_User_Access_Privilege
+    [Template]  Create User And Verify
+
+    # username      privilege_level  enabled
+    admin_user      Administrator    ${True}
+    operator_user   Operator         ${True}
+    readonly_user   ReadOnly         ${True}
+    noaccess_user   NoAccess         ${True}
+    disabled_user   Administrator    ${False}
+
+
 *** Keywords ***
+
+Create User And Verify
+    [Documentation]  Create a user with given user name and privilege and verify that the
+    ...  user is created successfully via GUI and Redfish.
+    [Teardown]  Run Keywords  Redfish.Logout  AND  Redfish.Login  AND
+    ...  Redfish.Delete  /redfish/v1/AccountService/Accounts/${user_name}
+    [Arguments]  ${user_name}  ${user_privilege}  ${enabled}
+
+    # Description of argument(s):
+    # user_name           The name of the user to be created (e.g. "test", "robert", etc.).
+    # user_privilege      Privilege of the user.
+    # enabled             If the user is enabled (e.g True if enabled, False if disabled).
+
+    Click Element  ${xpath_add_user}
+    Wait Until Page Contains Element  ${xpath_add_user_heading}
+
+    # Select disabled radio button if user needs to be disabled
+    Run Keyword If  ${enabled} == ${False}
+    ...  Click Element At Coordinates  ${xpath_radio_account_status_disabled}  0  0
+
+    # Input username, password and privilege.
+    Input Text  ${xpath_username_input_button}  ${user_name}
+    Select From List by Value  ${xpath_privilege_list_button}  ${user_privilege}
+
+    Input Text  ${xpath_password_input_button}  ${test_user_password}
+
+    Input Text  ${xpath_password_confirm_button}  ${test_user_password}
+
+    # Submit.
+    Click Element  ${xpath_submit_button}
+
+    # Refresh page and check new user is available.
+    Wait Until Page Contains Element  ${xpath_add_user}
+    Click Element  ${xpath_refresh_button}
+    Wait Until Page Contains  ${user_name}  timeout=15
+
+    # Cross check the privilege of newly added user via Redfish.
+    ${user_priv_redfish}=  Redfish_Utils.Get Attribute
+    ...  /redfish/v1/AccountService/Accounts/${user_name}  RoleId
+    Should Be Equal  ${user_privilege}  ${user_priv_redfish}
+
+    # Check enable/disable status for user.
+    Redfish.Logout
+    ${status}=  Run Keyword And Return Status  Redfish.Login  ${user_name}  ${test_user_password}
+    Run Keyword If  ${enabled} == ${False}
+    ...  Should Be Equal  ${status}  ${False}
+    ...  ELSE  Should Be Equal  ${status}  ${True}
+
 
 Test Setup Execution
     [Documentation]  Do test case setup tasks.
@@ -59,4 +165,4 @@ Test Setup Execution
 
     Click Element  ${xpath_access_control_menu}
     Click Element  ${xpath_local_user_management_sub_menu}
-    Wait Until Keyword Succeeds  30 sec  10 sec  Location Should Contain  local-user-management
+    Wait Until Keyword Succeeds  30 sec  10 sec  Location Should Contain  local-user-managemen

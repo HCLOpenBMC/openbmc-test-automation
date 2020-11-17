@@ -157,3 +157,36 @@ Verify Certificate Visible Via OpenSSL
     ${openssl_cert_content}=  Get Certificate Content From BMC Via Openssl
     Should Contain  ${cert_file_content}  ${openssl_cert_content}
 
+
+Delete All CA Certificate Via Redfish
+    [Documentation]  Delete all CA certificate via Redfish.
+    ${cert_list}=  Redfish_Utils.Get Member List  /redfish/v1/Managers/bmc/Truststore/Certificates
+    FOR  ${cert}  IN  @{cert_list}
+      Redfish.Delete  ${cert}  valid_status_codes=[${HTTP_NO_CONTENT}]
+    END
+
+
+Delete Certificate Via BMC CLI
+    [Documentation]  Delete certificate via BMC CLI.
+    [Arguments]  ${cert_type}
+
+    # Description of argument(s):
+    # cert_type           Certificate type (e.g. "Client" or "CA").
+
+    ${certificate_file_path}  ${certificate_service}  ${certificate_uri}=
+    ...  Run Keyword If  '${cert_type}' == 'Client'
+    ...    Set Variable  /etc/nslcd/certs/cert.pem  phosphor-certificate-manager@nslcd.service
+    ...    ${REDFISH_LDAP_CERTIFICATE_URI}
+    ...  ELSE IF  '${cert_type}' == 'CA'
+    ...    Set Variable  ${ROOT_CA_FILE_PATH}  phosphor-certificate-manager@authority.service
+    ...    ${REDFISH_CA_CERTIFICATE_URI}
+
+    ${file_status}  ${stderr}  ${rc}=  BMC Execute Command
+    ...  [ -f ${certificate_file_path} ] && echo "Found" || echo "Not Found"
+
+    Return From Keyword If  "${file_status}" != "Found"
+    BMC Execute Command  rm ${certificate_file_path}
+    BMC Execute Command  systemctl restart ${certificate_service}
+    BMC Execute Command  systemctl daemon-reload
+    Wait Until Keyword Succeeds  1 min  10 sec  Redfish.Get  ${certificate_uri}/1
+    ...  valid_status_codes=[${HTTP_NOT_FOUND}, ${HTTP_INTERNAL_SERVER_ERROR}]
