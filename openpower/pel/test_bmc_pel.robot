@@ -43,9 +43,6 @@ ${CMD_PREDICTIVE_ERROR}  busctl call xyz.openbmc_project.Logging /xyz/openbmc_pr
 
 @{mandatory_pel_fileds}   Private Header  User Header  Primary SRC  Extended User Header  Failing MTMS
 
-${info_log_max_usage_percentage}  15
-
-
 *** Test Cases ***
 
 Create Test PEL Log And Verify
@@ -520,40 +517,48 @@ Verify Unrecoverable Error Log
     Should Contain  ${pel_records['${id}']['Sev']}  Unrecoverable
 
 
-Verify Informational Error Log Size When Error Log Exceeds Limit
-    [Documentation]  Verify informational error log size when informational log size exceeds limit.
-    [Tags]  Verify_Informational_Error_Log_Error_Log_When_Size_Exceeds_Limit
+Verify Error Logging Rotation Policy
+    [Documentation]  Verify error logging rotation policy.
+    [Tags]  Verify_Error_Logging_Rotation_Policy
+    [Template]  Error Logging Rotation Policy
 
-    # Initially remove all logs.
-    Redfish Purge Event Log
-
-    # Create 3001 information logs.
-    FOR  ${LOG_COUNT}  IN RANGE  0  3001
-      BMC Execute Command  ${CMD_INFORMATIONAL_ERROR}
-    END
-
-    # Delay for BMC to perform log compression when log size exceeds.
-    Sleep  10s
-
-    # Check logsize and verify that disk usage is around 15%.
-    ${usage_percent}=  Get Disk Usage For Error Logs
-    ${percent_diff}=  Evaluate  ${usage_percent} - ${info_log_max_usage_percentage}
-    ${percent_diff}=   Evaluate  abs(${percent_diff})
-    Should Be True  ${percent_diff} <= 0.5
-
+    # Error logs to be created                                % of total logging space when error
+    #                                                         log exceeds max limit.
+    Informational BMC 3000                                                       15
+    Predictive BMC 3000                                                          30
+    Unrecoverable BMC 3000                                                       30
+    Informational BMC 1500, Predictive BMC 1500                                  45
+    Informational BMC 1500, Unrecoverable BMC 1500                               45
+    Unrecoverable BMC 1500, Predictive BMC 1500                                  30
+    Unrecoverable BMC 1000, Informational BMC 1000, Predictive BMC 1000          45
 
 Verify Reverse Order Of PEL Logs
     [Documentation]  Verify PEL command to output PEL logs in reverse order.
     [Tags]  Verify_Reverse_PEL_Logs
 
     Redfish Purge Event Log
+
+    # Below commands create unrecoverable error log at first and then the predictable error.
     BMC Execute Command  ${CMD_UNRECOVERABLE_ERROR}
     BMC Execute Command  ${CMD_PREDICTIVE_ERROR}
 
-    ${pel_records}=  Peltool  -rl
-    ${pel_ids}=  Get Dictionary Keys   ${pel_records}   False
+    # Using peltool -lr, recent PELs appear first. Hence the ID of first PEL is greater than the next.
+    ${pel_records}=  peltool  -lr
 
-    Should Be True  ${pel_ids}[0] > ${pel_ids}[1]
+    # It is found that, variables like dictionary always keep items in sorted order that makes
+    # this verification not possible, hence json is used to keep the items original order.
+    ${pel_records}=  Convert To String  ${pel_records}
+    ${json_string}=  Replace String  ${pel_records}  '  "
+    ${json_object}=  Evaluate  json.loads('''${json_string}''')  json
+
+    ${list}=  Convert To List  ${json_object}
+
+    ${id1}=  Get From List   ${list}  0
+    ${id1}=  Convert To Integer  ${id1}
+    ${id2}=  Get From List   ${list}  1
+    ${id2}=  Convert To Integer  ${id2}
+
+    Should Be True  ${id1} > ${id2}
 
 
 Verify Total PEL Count
@@ -587,18 +592,88 @@ Verify Listing Information Error
 
     # Generate informational logs and verify that it would not get listed by peltool's list command.
     ${pel_records}=  peltool  -l
-    ${pel_ids}=  Get PEL Log Via BMC CLI
-    ${id}=  Get From List  ${pel_ids}  -1
-    Should Not Contain  ${pel_records['${id}']['Sev']}  Informational
+    ${ids}=  Get Dictionary Keys  ${pel_records}
+    Should Be Empty  ${ids}
 
     # Verify that information logs get listed using peltool's list command with -lfh option.
     ${pel_records}=  peltool  -lfh
-    ${pel_ids}=  Get PEL Log Via BMC CLI
-    ${id}=  Get From List  ${pel_ids}  -1
+    ${ids}=  Get Dictionary Keys  ${pel_records}
+    Should Not Be Empty  ${ids}
+    ${id}=  Get From List  ${ids}  0
     Should Contain  ${pel_records['${id}']['Sev']}  Informational
 
 
+Verify PEL Delete
+    [Documentation]  Verify that peltool command can delete PEL log based on id.
+    [Tags]  Verify_PEL_Delete
+
+    BMC Execute Command  ${CMD_PREDICTIVE_ERROR}
+    ${pel_ids}=  Get PEL Log Via BMC CLI
+    ${id}=  Get From List  ${pel_ids}  -1
+    Peltool  -d ${id}
+    ${output}=  peltool -i ${id}
+    Should Contain  ${output}  PEL not found
+
+
 *** Keywords ***
+
+Error Logging Rotation Policy
+    [Documentation]  Verify that when maximum log limit is reached, given error logging type
+    ...  are deleted when reached their max allocated space.
+    [Arguments]  ${error_log_type}  ${max_allocated_space_percentage}
+
+    # Description of argument(s):
+    # error_log                           Error logs to be created (E.g. Informational BMC 3000
+    #                                     stands for BMC created 3000 informational error logs).
+    # max_allocated_space_percentage      The maximum percentage of disk usage for given error
+    #                                     log type when maximum count/log size is reached.
+    #                                     The maximum error log count is 3000.
+
+    # Initially remove all logs. Purging is done to ensure that, only specific logs are present
+    # in BMC during the test.
+    Redfish Purge Event Log
+
+    @{lists}=  Split String  ${error_log_type}  ,${SPACE}
+
+    ${length}=  Get Length  ${lists}
+
+    FOR  ${list}  IN RANGE  ${length}
+        @{words}=  Split String  ${lists}[${list}]  ${SPACE}
+        Create Error Log  ${words}[0]  ${words}[1]  ${words}[2]
+    END
+
+    # Create an additional error log to exceed max error logs limit.
+    BMC Execute Command  ${CMD_UNRECOVERABLE_ERROR}
+
+    # Delay for BMC to perform delete older error logs when log limit exceeds.
+    Sleep  10s
+
+    # Verify disk usage is around max allocated space. Maximum usage is around 3MB not exactly 3MB
+    # (for informational log) and around 6 MB for unrecoverable / predictive error log. So, usage
+    # percentage is NOT exactly 15% and 30%. So, an error/accuracy factor 0.5 percent is added.
+
+    ${disk_usage_percentage}=  Get Disk Usage For Error Logs
+    ${percent_diff}=  Evaluate  ${disk_usage_percentage} - ${max_allocated_space_percentage}
+    ${percent_diff}=   Evaluate  abs(${percent_diff})
+    Should Be True  ${percent_diff} <= 0.5
+
+
+Create Error Log
+    [Arguments]  ${error_severity}   ${error_creator}   ${count}
+
+    # Description of argument(s):
+    # error_severity             Severity of the error (E.g. Informational, Unrecoberable or Predictive)
+    # error_creator              Name of error log's creator(E.g BMC, Host Boot)
+    # count                      Number of error logs to be generated.
+
+    FOR  ${i}  IN RANGE  0  ${count}
+        ${cmd}=  Set Variable If
+        ...  '${error_severity}' == 'Informational'  ${CMD_INFORMATIONAL_ERROR}
+        ...  '${error_severity}' == 'Predictive'  ${CMD_PREDICTIVE_ERROR}
+        ...  '${error_severity}' == 'Unrecoverable'  ${CMD_UNRECOVERABLE_ERROR}
+        BMC Execute Command  ${cmd}
+    END
+
 
 Get Disk Usage For Error Logs
     [Documentation]  Get disk usage percentage for error logs.

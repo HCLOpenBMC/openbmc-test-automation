@@ -2,7 +2,8 @@
 
 Documentation  Test OpenBMC GUI "Event logs" sub-menu.
 
-Resource        ../../lib/resource.robot
+Resource        ../../lib/gui_resource.robot
+Resource        ../../../lib/logging_utils.robot
 
 Suite Setup     Suite Setup Execution
 Suite Teardown  Close Browser
@@ -21,7 +22,8 @@ ${xpath_select_all_events}        //*[@data-test-id="eventLogs-checkbox-selectAl
 ${xpath_event_action_delete}      //*[@data-test-id="table-button-deleteSelected"]
 ${xpath_event_action_export}      //*[contains(text(),"Export")]
 ${xpath_event_action_cancel}      //button[contains(text(),"Cancel")]
-
+${xpath_delete_first_row}         //*[@data-test-id="eventLogs-button-deleteRow-0"][2]
+${xpath_confirm_delete}           //button[@class="btn btn-primary"]
 
 *** Test Cases ***
 
@@ -64,6 +66,32 @@ Verify Event Log Options
     Page Should Contain Button  ${xpath_event_action_delete}  limit=1
     Page Should Contain Element  ${xpath_event_action_export}  limit=1
     Page Should Contain Element  ${xpath_event_action_cancel}  limit=1
+
+
+Select Single Error Log And Delete
+    [Documentation]  Select single error log and delete it.
+    [Tags]  Select_Single_Error_Log_And_Delete
+
+    Create Error Logs  ${2}
+    ${number_of_events_before}=  Get Number Of Event Logs
+    Click Element At Coordinates  ${xpath_delete_first_row}  0  0
+    Wait Until Page Contains Element  ${xpath_confirm_delete}
+    Click Button  ${xpath_confirm_delete}
+    ${number_of_events_after}=  Get Number Of Event Logs
+    Should Be Equal  ${number_of_events_before -1}  ${number_of_events_after}
+    ...  msg=Failed to delete single error log entry.
+
+
+Select All Error Logs And Verify Buttons
+    [Documentation]  Select all error logs and verify delete, export and cancel buttons.
+    [Tags]  Select_All_Error_Logs_And_Verify_Buttons
+
+    Create Error Logs  ${2}
+    Wait Until Element Is Visible  ${xpath_delete_first_row}
+    Select All Events
+    Wait Until Element Is Visible  ${xpath_event_action_delete}
+    Element Should Be Visible  ${xpath_event_action_export}
+    Element Should Be Visible  ${xpath_event_action_cancel}
 
 
 *** Keywords ***
