@@ -57,17 +57,6 @@ Verify Existence Of All Input boxes In Event Logs Page
     Page Should Contain Element  ${xpath_event_to_date}  limit=1
 
 
-Verify Event Log Options
-    [Documentation]  Verify all the options after selecting event logs.
-    [Tags]  Verify_Click_Event_Options
-
-    Create Error Logs  ${1}
-    Select All Events
-    Page Should Contain Button  ${xpath_event_action_delete}  limit=1
-    Page Should Contain Element  ${xpath_event_action_export}  limit=1
-    Page Should Contain Element  ${xpath_event_action_cancel}  limit=1
-
-
 Select Single Error Log And Delete
     [Documentation]  Select single error log and delete it.
     [Tags]  Select_Single_Error_Log_And_Delete
@@ -94,6 +83,40 @@ Select All Error Logs And Verify Buttons
     Element Should Be Visible  ${xpath_event_action_cancel}
 
 
+Select And Verify Default UTC Timezone For Events
+    [Documentation]  Select and verify that default UTC timezone is displayed for an event.
+    [Tags]  Select_And_Verify_Default_UTC_Timezone_For_Events
+    [Setup]  Run Keywords  Redfish.Login  AND  Redfish Purge Event Log
+    [Teardown]  Redfish.Logout
+
+    Create Error Logs  ${1}
+
+    # Set Default timezone in profile settings page.
+    Set Timezone In Profile Settings Page  Default
+    Navigate To Event Logs Page
+
+    # Get date and time from backend.
+    ${event_data}=  Get Event Logs
+    # Date format: 2020-12-07T15:18:35+00:00.
+    ${redfish_event_date_time}=  Set Variable  ${event_data[0]["Created"].split('T')}
+
+    Page Should Contain  ${redfish_event_date_time[0]}
+    Page Should Contain  ${redfish_event_date_time[1].split('+')[0]}
+
+
+Verify Displayed Event Details With Redfish
+    [Documentation]  Verify event details like severity, desc etc using Redfish.
+    [Tags]  Verify_Displayed_Event_Details_With_Redfish
+    [Setup]  Run Keywords  Redfish.Login  AND  Redfish Purge Event Log
+    [Teardown]  Redfish.Logout
+
+    Create Error Logs  ${1}
+    ${event_data}=  Get Event Logs
+    Page Should Contain  ${event_data[0]["Severity"]}
+    Page Should Contain  ${event_data[0]["EntryType"]}
+    Page Should Contain  ${event_data[0]["Message"]}
+
+
 *** Keywords ***
 
 Suite Setup Execution
@@ -108,7 +131,6 @@ Navigate To Event Logs Page
     Click Element  ${xpath_health_menu}
     Click Element  ${xpath_event_logs_sub_menu}
     Wait Until Keyword Succeeds  30 sec  5 sec  Location Should Contain  event-logs
-
 
 Create Error Logs
     [Documentation]  Create given number of error logs.

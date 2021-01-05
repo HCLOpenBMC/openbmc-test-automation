@@ -26,6 +26,12 @@ ${xpath_setting_success}          //*[contains(text(),"Successfully saved networ
 ${xpath_add_dns_server}           //button[contains(text(),"Add DNS server")]
 ${xpath_network_interface}        //*[@data-test-id="networkSettings-select-interface"]
 ${xpath_input_netmask_addr0}      //*[@data-test-id="networkSettings-input-subnetMask-0"]
+${xpath_delete_static_ip}         //*[@title="Delete IPv4 row"]
+${xpath_input_dns_server}         //*[@data-test-id="networkSettings-input-dnsAddress-0"]
+${xpath_delete_dns_server}        //*[@title="Delete DNS row"]
+
+
+@{static_name_servers}            10.10.10.10
 
 *** Test Cases ***
 
@@ -44,6 +50,7 @@ Verify Existence Of All Sections In Network Settings Page
     Page Should Contain Element  ${xpath_system}
     Page Should Contain Element  ${xpath_static_ipv4}
     Page Should Contain Element  ${xpath_static_dns}
+    Page Should Contain Button   ${xpath_delete_static_ip}
 
 
 Verify Existence Of All Buttons In Network Settings Page
@@ -152,6 +159,39 @@ Configure Invalid Network Addresses And Verify
     ${xpath_input_netmask_addr0}     255.256.255.0
 
 
+Configure And Verify Empty Network Addresses
+    [Documentation]  Configure and verify empty network addresses.
+    [Tags]  Configure_And_Verify_Empty_Network_Addresses
+    [Template]  Configure Invalid Network Address And Verify
+
+    # locator                       invalid_address  expected_error
+    ${xpath_mac_address_input}        ${empty}       Field required
+    ${xpath_default_gateway_input}    ${empty}       Field required
+    ${xpath_static_input_ip0}         ${empty}       Field required
+    ${xpath_input_netmask_addr0}      ${empty}       Field required
+    ${xpath_hostname_input}           ${empty}       Field required
+
+
+Config And Verify DNS Server Via GUI
+    [Documentation]  Configure DNS server and verify.
+    [Tags]  Config_And_Verify_DNS_Server_Via_GUI
+    [Setup]   DNS Test Setup Execution
+    [Teardown]   Run Keywords  Delete DNS Server And Verify  ${static_name_servers}
+    ...  AND  DNS Test Teardown Execution
+
+    Add DNS Server And Verify  ${static_name_servers}
+
+
+Delete And Verify DNS Server Via GUI
+    [Documentation]  Delete DNS server and verify.
+    [Tags]  Delete_And_Verify_DNS_Server_Via_GUI
+    [Setup]   Run Keywords  DNS Test Setup Execution  AND
+    ...  Add DNS Server And Verify  ${static_name_servers}
+    [Teardown]  DNS Test Teardown Execution
+
+    Delete DNS Server And Verify  ${static_name_servers}
+
+
 *** Keywords ***
 
 Suite Setup Execution
@@ -165,14 +205,102 @@ Suite Setup Execution
 
 Configure Invalid Network Address And Verify
     [Documentation]  Configure invalid network address And verify.
-    [Arguments]  ${locator}  ${invalid_address}
+    [Arguments]  ${locator}  ${invalid_address}  ${expected_error}=Invalid format
 
     # Description of the argument(s):
     # locator            Xpath to identify an HTML element on a web page.
     # invalid_address    Invalid address to be added.
+    # expected_error     Expected error optionally provided in testcase
+    # ....               (e.g. Invalid format / Field required)
 
-    Wait Until Page Contains Element  ${locator}
+    Wait Until Element Is Enabled  ${locator}
+    Clear Element Text  ${locator}
     Input Text  ${locator}  ${invalid_address}
     Click Element  ${xpath_network_save_settings}
-    Page Should Contain  Invalid format
+    Page Should Contain  ${expected_error}
+
+
+Add DNS Server And Verify
+    [Documentation]  Add DNS server on BMC and verify it via BMC CLI.
+    [Arguments]  ${static_name_servers}
+
+    # Description of the argument(s):
+    # static_name_servers  A list of static name server IPs to be
+    #                      configured on the BMC.
+
+    Wait Until Page Contains Element  ${xpath_add_dns_server}
+    ${length}=  Get Length   ${static_name_servers}
+    FOR  ${i}  IN RANGE  ${length}
+      Click Button  ${xpath_add_dns_server}
+      Input Text  //*[@data-test-id="networkSettings-input-dnsAddress-${i}"]
+      ...  ${static_name_servers}[${i}]
+    END
+
+    Click Button  ${xpath_network_save_settings}
+    Wait Until Page Contains Element  ${xpath_setting_success}  timeout=15
+
+    Sleep  ${NETWORK_TIMEOUT}s
+    Verify Static Name Server Details On GUI  ${static_name_servers}
+    # Check if newly added DNS server is configured on BMC.
+    ${cli_name_servers}=  CLI Get Nameservers
+    List Should Contain Sub List  ${cli_name_servers}  ${static_name_servers}
+
+
+Delete DNS Server And Verify
+    [Documentation]  Delete static name servers.
+    [Arguments]  ${static_name_servers}
+
+    # Description of the argument(s):
+    # static_name_servers  A list of static name server IPs to be
+    #                      configured on the BMC.
+
+    ${length}=  Get Length  ${static_name_servers}
+    FOR  ${i}  IN RANGE   ${length}
+       ${status}=  Run Keyword And Return Status
+       ...  Page Should Contain Element  ${xpath_delete_dns_server}
+       Exit For Loop If   "${status}" == "False"
+       Wait Until Element Is Enabled  ${xpath_delete_dns_server}
+       Click Button  ${xpath_delete_dns_server}
+    END
+
+    Click Button  ${xpath_network_save_settings}
+    Wait Until Page Contains Element  ${xpath_setting_success}  timeout=15
+
+    Sleep  ${NETWORK_TIMEOUT}s
+    Page Should Not Contain Element  ${xpath_input_dns_server}
+    # Check if all name servers deleted on BMC.
+    ${nameservers}=  CLI Get Nameservers
+    Should Be Empty  ${nameservers}
+
+
+DNS Test Setup Execution
+    [Documentation]  Do DNS test setup execution.
+
+    ${original_name_server}=  CLI Get Nameservers
+    Set Suite Variable   ${original_name_server}
+    Run Keyword If  ${original_name_server} != @{EMPTY}
+    ...  Delete DNS Server And Verify  ${original_name_server}
+
+
+DNS Test Teardown Execution
+    [Documentation]  Do DNS test teardown execution.
+
+    Run Keyword If  ${original_name_server} != @{EMPTY}
+    ...  Add DNS Server And Verify  ${original_name_server}
+
+
+Verify Static Name Server Details On GUI
+    [Documentation]  Verify static name servers on GUI.
+    [Arguments]   ${static_name_servers}
+
+    # Description of the argument(s):
+    # static_name_servers  A list of static name server IPs to be
+    #                      configured on the BMC.
+
+    ${length}=  Get Length  ${static_name_servers}
+    FOR  ${i}  IN RANGE  ${length}
+       Page Should Contain Element  //*[@data-test-id="networkSettings-input-dnsAddress-${i}"]
+       Textfield Value Should Be   //*[@data-test-id="networkSettings-input-dnsAddress-${i}"]
+       ...  ${static_name_servers}[${i}]
+    END
 
