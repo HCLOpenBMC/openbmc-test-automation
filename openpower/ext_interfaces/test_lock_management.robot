@@ -6,10 +6,11 @@ Resource             ../../lib/resource.robot
 Resource             ../../lib/openbmc_ffdc.robot
 Resource             ../../lib/bmc_redfish_utils.robot
 Resource             ../../lib/external_intf/management_console_utils.robot
+Resource             ../../lib/rest_response_code.robot
 Library              ../../lib/bmc_network_utils.py
 
 Suite Setup          Run Keyword And Ignore Error  Delete All Redfish Sessions
-Suite Teardown       Redfish.Logout
+Suite Teardown       Run Keyword And Ignore Error  Delete All Redfish Sessions
 Test Setup           Printn
 Test Teardown        FFDC On Test Case Fail
 
@@ -56,15 +57,6 @@ Acquire Read Lock On Read Lock
     HMCID-01
 
 
-Get Lock Records Empty For Invalid Session
-    [Documentation]  Record of lock list is empty for invalid session.
-    [Tags]  Get_Lock_Records_Empty_For_Invalid_Session
-    [Template]  Verify Empty Lock Records For Invalid Session
-
-    # client_id
-    HMCID-01
-
-
 Fail To Acquire Lock On Another Lock
     [Documentation]  Fail to acquire another lock.
     [Tags]  Fail_To_Acquire_Lock_On_Another_Lock
@@ -104,6 +96,28 @@ Acquire And Release Lock In Loop
     HMCID-01       WriteCase3
 
 
+Fail To Acquire Read And Write In Single Request
+    [Documentation]  Fail to acquire read and write lock in single request.
+    [Tags]  Fail_To_Acquire_Read_And_Write_In_Single_Request
+    [Template]  Verify Fail To Acquire Read And Write In Single Request
+
+    # client_id    lock_type
+    HMCID-01       ReadCase1,WriteCase1
+    HMCID-01       WriteCase1,ReadCase1
+
+
+Acquire Multiple Lock Request At CEC Level
+    [Documentation]  Acquire write lock on read lock under CEC level.
+    [Tags]  Acquire_Multiple_Lock_Request_At_CEC_Level
+    [Template]  Verify Acquire Multiple Lock Request At CEC Level
+
+    # client_id    lock_type
+    HMCID-01       ReadCase4,WriteCase4
+    HMCID-01       WriteCase5,ReadCase5
+    HMCID-01       ReadCase6,WriteCase6
+    HMCID-01       WriteCase7,ReadCase7
+
+
 Verify Release Of Valid Locks
     [Documentation]  Release all valid locks.
     [Tags]  Verify_Release_Of_Valid_Locks
@@ -114,10 +128,10 @@ Verify Release Of Valid Locks
     HMCID-02       ReadCase1,ReadCase1,ReadCase1    Session
 
 
-Invalid Locks Fail To Release
+Fail To Release Multiple Lock With Invalid TransactionID
     [Documentation]  Release in-valid lock result in fail.
-    [Tags]  Invalid_Locks_Fail_To_Release
-    [Template]  Verify Invalid Locks Fail To Release
+    [Tags]  Fail_To_Release_Multiple_Lock_With_Invalid_TransactionID
+    [Template]  Verify Fail To Release Multiple Lock With Invalid TransactionID
 
     # client_id    lock_type                        release_lock_type
     HMCID-01       ReadCase1,ReadCase1,ReadCase1    Transaction
@@ -226,6 +240,15 @@ Get Empty Lock Records For Session Where No Locks Acquired
     HMCID-01
 
 
+Get Lock Records Empty For Invalid Session
+    [Documentation]  Record of lock list is empty for invalid session.
+    [Tags]  Get_Lock_Records_Empty_For_Invalid_Session
+    [Template]  Verify Empty Lock Records For Invalid Session
+
+    # client_id
+    HMCID-01
+
+
 Get Lock Records For Multiple Session
     [Documentation]  Get lock records of multiple session.
     [Tags]  Get_Lock_Records_For_Multiple_Session
@@ -234,6 +257,23 @@ Get Lock Records For Multiple Session
     # client_ids         lock_type
     HMCID-01,HMCID-02    ReadCase1,ReadCase1
 
+
+Get Lock Records For Multiple Invalid Session
+    [Documentation]  Record of lock list is empty for list of invalid session.
+    [Tags]  Get_Lock_Records_For_Multiple_Invalid_Session
+    [Template]  Verify Lock Records For Multiple Invalid Session
+
+    # client_id
+    HMCID-01
+
+
+Get Lock Records For Multiple Invalid And Valid Session
+    [Documentation]  Get record of lock from invalid and valid session.
+    [Tags]  Get_Lock_Records_For_Multiple_Invalid_And_Valid_Session
+    [Template]  Verify Lock Records For Multiple Invalid And Valid Session
+
+    # client_id          lock_type
+    HMCID-01,HMCID-02    ReadCase1
 
 *** Keywords ***
 
@@ -352,7 +392,26 @@ Redfish Post Acquire Lock
     ${lock_dict_param}=  Form Data To Acquire Lock  ${lock_type}
     ${resp}=  Redfish Post Request  /ibm/v1/HMC/LockService/Actions/LockService.AcquireLock  data=${lock_dict_param}
     Should Be Equal As Strings  ${resp.status_code}  ${status_code}
-    ${resp}=  Return Description Of Response  ${resp.content}
+
+    Run Keyword If  ${status_code} == ${HTTP_BAD_REQUEST}
+    ...    Valid Value  ${BAD_REQUEST}  ['${resp.content}']
+    ...  ELSE
+    ...    Run Keyword And Return  Return Description Of Response  ${resp.content}
+
+    [Return]  ${resp}
+
+
+Redfish Post Acquire List Lock
+    [Documentation]  Acquire and release lock.
+    [Arguments]  ${lock_type}  ${status_code}=${HTTP_OK}
+
+    # Description of argument(s):
+    # lock_type      Read lock or Write lock.
+    # status_code    HTTP status code.
+
+    ${lock_dict_param}=  Create Data To Acquire List Of Lock  ${lock_type}
+    ${resp}=  Redfish Post Request  /ibm/v1/HMC/LockService/Actions/LockService.AcquireLock  data=${lock_dict_param}
+    Should Be Equal As Strings  ${resp.status_code}  ${status_code}
 
     [Return]  ${resp}
 
@@ -402,6 +461,28 @@ Form Data To Acquire Lock
     ...    ${lock_res_info["Valid Case"]["${lock_type}"]}
     ...    ${lock_res_info["Valid Case"]["ResourceID"]}
     ${temp_list}=  Create List  ${resp}
+    ${lock_request_dict}=  Create Dictionary  Request=${temp_list}
+
+    [Return]  ${lock_request_dict}
+
+
+Create Data To Acquire List Of Lock
+    [Documentation]  Create a dictionay for list of lock request.
+    [Arguments]  ${lock_type_list}
+
+    # Description of argument(s):
+    # lock_type      Read lock or Write lock.
+
+    ${temp_list}=  Create List
+    ${lock_res_info}=  Get Lock Resource Information
+
+    FOR  ${lock_type}  IN  @{lock_type_list}
+      ${resp}=  RW General Dictionary
+      ...    ${lock_res_info["Valid Case"]["${lock_type}"]}
+      ...    ${lock_res_info["Valid Case"]["ResourceID"]}
+      Append To List  ${temp_list}  ${resp}
+    END
+
     ${lock_request_dict}=  Create Dictionary  Request=${temp_list}
 
     [Return]  ${lock_request_dict}
@@ -546,6 +627,18 @@ Release Locks On Resource
     Should Be Equal As Strings  ${resp.status_code}  ${status_code}
 
 
+Release locks And Delete Session
+    [Documentation]  Release locks and delete redfish session.
+    [Arguments]  ${session_info}  ${trans_id_list}
+
+    Release Locks On Resource  ${session_info}  ${trans_id_list}
+
+    ${trans_id_emptylist}=  Create List
+    Verify Lock On Resource  ${session_info}  ${trans_id_emptylist}
+
+    Redfish Delete Session  ${session_info}
+
+
 Acquire Lock On Another Lock
     [Documentation]  Acquire lock on another lock.
     [Arguments]  ${client_id}
@@ -564,10 +657,23 @@ Acquire Lock On Another Lock
     Append To List  ${trans_id_list}  ${trans_id}
 
     Verify Lock On Resource  ${session_info}  ${trans_id_list}
-    Release Locks On Resource  ${session_info}  ${trans_id_list}
 
-    ${trans_id_emptylist}=  Create List
-    Verify Lock On Resource  ${session_info}  ${trans_id_emptylist}
+    Release locks And Delete Session  ${session_info}  ${trans_id_list}
+
+
+Verify Fail To Acquire Read And Write In Single Request
+    [Documentation]  Verify fail to acquire read and write lock passed in single request.
+    [Arguments]  ${client_id}  ${lock_type}
+
+    # Description of argument(s):
+    # client_id    This client id can contain string value
+    #              (e.g. 12345, "HMCID").
+    # lock_type    Read lock or Write lock.
+
+    ${lock_type_list}=  Split String  ${lock_type}  ,
+
+    ${session_info}=  Create Redfish Session With ClientID  ${client_id}
+    ${trans_id}=  Redfish Post Acquire List Lock  ${lock_type_list}  status_code=${HTTP_BAD_REQUEST}
     Redfish Delete Session  ${session_info}
 
 
@@ -588,9 +694,9 @@ Verify Empty Lock Records For Invalid Session
     set to dictionary  ${session_info2}  SessionIDs  xxyXyyYZZz
 
     ${lock_list2}=  Get Locks List On Resource  ${session_info2}
-    ${lock_length2}=  Get Length  ${lock_list1}
+    ${lock_length2}=  Get Length  ${lock_list2}
 
-    Valid Value  lock_length1  ${lock_list2}
+    Should Be Equal As Integers  ${lock_length1}  ${lock_length2}
 
     Redfish Delete Session  ${session_info1}
 
@@ -613,12 +719,8 @@ Verify Acquire Lock Fails On Another Lock
 
     Verify Lock On Resource  ${session_info}  ${trans_id_list}
     ${trans_id}=  Redfish Post Acquire Lock  ${lock_type_list}[1]  status_code=${HTTP_CONFLICT}
-    Release Locks On Resource  ${session_info}  ${trans_id_list}
 
-    ${trans_id_emptylist}=  Create List
-    Verify Lock On Resource  ${session_info}  ${trans_id_emptylist}
-
-    Redfish Delete Session  ${session_info}
+    Release locks And Delete Session  ${session_info}  ${trans_id_list}
 
 
 Verify Acquire Lock After Reboot
@@ -631,7 +733,7 @@ Verify Acquire Lock After Reboot
     # lock_type    Read lock or Write lock.
 
     ${trans_id_list}=  Create List
-    ${session_info}=  Create Redfish Session With ClientID  ${client_id}
+    ${session_info}=  Create Session With ClientID  ${client_id}
     ${before_reboot_xauth_token}=  Set Variable  ${XAUTH_TOKEN}
     Redfish OBMC Reboot (off)
     Redfish Login
@@ -640,11 +742,31 @@ Verify Acquire Lock After Reboot
     ${trans_id}=  Redfish Post Acquire Lock  ${lock_type}
     Append To List  ${trans_id_list}  ${trans_id}
     Verify Lock On Resource  ${session_info}  ${trans_id_list}
-    Release Locks On Resource  ${session_info}  ${trans_id_list}  Transaction  ${HTTP_OK}
 
-    ${trans_id_emptylist}=  Create List
-    Verify Lock On Resource  ${session_info}  ${trans_id_emptylist}
-    Redfish Delete Session  ${session_info}
+    Release locks And Delete Session  ${session_info}  ${trans_id_list}
+
+
+Verify Acquire Multiple Lock Request At CEC Level
+    [Documentation]  Acquire lock in loop.
+    [Arguments]  ${client_id}  ${lock_type}
+
+    # Description of argument(s):
+    # client_id    This client id can contain string value
+    #              (e.g. 12345, "HMCID").
+    # lock_type    Read lock or Write lock.
+
+    ${trans_id_list}=  Create List
+    @{lock_type_list}=  Split String  ${lock_type}  ,
+    ${session_info}=  Create Redfish Session With ClientID  ${client_id}
+
+    ${trans_id}=  Redfish Post Acquire Lock  ${lock_type_list}[0]
+    Append To List  ${trans_id_list}  ${trans_id}
+
+    Verify Lock On Resource  ${session_info}  ${trans_id_list}
+
+    Redfish Post Acquire Lock  ${lock_type_list}[1]  status_code=${HTTP_CONFLICT}
+
+    Release locks And Delete Session  ${session_info}  ${trans_id_list}
 
 
 Verify Acquire And Release Lock In Loop
@@ -701,8 +823,8 @@ Acquire And Release Multiple Locks
     Redfish Delete Session  ${session_info}
 
 
-Verify Invalid Locks Fail To Release
-    [Documentation]  Verify invalid locks fails to be released.
+Verify Fail To Release Multiple Lock With Invalid TransactionID
+    [Documentation]  Verify release multiple locks with invalid transaction ID fails.
     [Arguments]  ${client_id}  ${lock_type}  ${release_lock_type}
 
     # Description of argument(s):
@@ -933,3 +1055,81 @@ Verify Lock Records Of Multiple Session
     Verify Lock On Resource  ${session_info2}[0]  ${trans_id_emptylist}
 
     Redfish Delete List Of Session  ${session_dict_list}
+
+
+Verify Lock Records For Multiple Invalid Session
+    [Documentation]  Verify no lock record found for multiple invalid session.
+    [Arguments]  ${client_id}
+
+    # Description of argument(s):
+    # client_id    This client id can contain string value
+    #              (e.g. 12345, "HMCID").
+
+    ${session_dict_list}=  Create List
+    ${invalid_session_ids}=  Create List  xxyXyyYZZz  xXyXYyYZzz
+
+    ${session_info1}=  Create Session With ClientID  ${client_id}
+
+    ${session_info2}=  Copy Dictionary  ${session_info1}  deepcopy=True
+    set to dictionary  ${session_info2}  SessionIDs  ${invalid_session_ids}[0]
+    Append To List  ${session_dict_list}  ${session_info2}
+
+    ${session_info3}=  Copy Dictionary  ${session_info1}  deepcopy=True
+    set to dictionary  ${session_info3}  SessionIDs  ${invalid_session_ids}[0]
+    Append To List  ${session_dict_list}  ${session_info3}
+
+    ${lock_list1}=  Get Locks List On Resource  ${session_info1}
+    ${lock_length1}=  Get Length  ${lock_list1}
+
+    ${session_id_list}=  Create List Of Session ID  ${session_dict_list}
+    ${lock_list_resp}=  Get Locks List On Resource With Session List  ${session_id_list}
+    ${lock_length2}=  Get Length  ${lock_list_resp['Records']}
+
+    Should Be Equal As Integers  ${lock_length1}  ${lock_length2}
+
+    Redfish Delete Session  ${session_info1}
+
+
+Verify Lock Records For Multiple Invalid And Valid Session
+    [Documentation]  Verify all records found for a valid and invalid sessions.
+    [Arguments]  ${client_ids}  ${lock_type}
+
+    # Description of argument(s):
+    # client_ids    This client id can contain string value
+    #               (e.g. 12345, "HMCID").
+    # lock_type     Read lock or Write lock.
+
+    ${client_id_list}=  Split String  ${client_ids}  ,
+    ${lock_type_list}=  Split String  ${lock_type}  ,
+    ${trans_id_list1}=  Create List
+    ${invalid_session_ids}=  Create List  xxyXyyYZZz
+
+    ${session_dict_list}=  Create List
+    ${lock_list}=  Create List
+
+    ${client_id1}=  Create List
+    Append To List  ${client_id1}  ${client_id_list}[0]
+    ${session_info1}=  Create Session With List Of ClientID  ${client_id1}
+    Append To List  ${session_dict_list}  ${session_info1}[0]
+    Verify A Session Created With ClientID  ${client_id1}  ${session_info1}
+
+    ${trans_id}=  Redfish Post Acquire Lock  ${lock_type_list}[0]
+    Append To List  ${trans_id_list1}  ${trans_id}
+    Append To List  ${lock_list}  ${trans_id}
+    Verify Lock On Resource  ${session_info1}[0]  ${trans_id_list1}
+
+    ${session_info2}=  Copy Dictionary  ${session_info1}  deepcopy=True
+    set to dictionary  ${session_info2}[0]  SessionIDs  ${invalid_session_ids}[0]
+    Append To List  ${session_dict_list}  ${session_info2}[0]
+
+    Verify List Of Session Lock On Resource  ${session_dict_list}  ${lock_list}
+
+    ${session_token}=  Get From Dictionary  ${session_info1}[0]  SessionToken
+    Set Global Variable  ${XAUTH_TOKEN}  ${session_token}
+
+    Release Locks On Resource  ${session_info1}  ${trans_id_list1}  release_lock_type=Transaction
+
+    ${trans_id_emptylist}=  Create List
+    Verify Lock On Resource  ${session_info1}[0]  ${trans_id_emptylist}
+
+    Redfish Delete Session  ${session_info1}[0]
