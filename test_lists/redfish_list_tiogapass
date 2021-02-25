@@ -1,0 +1,13 @@
+# test_firmware_inventory
+
+-i Verify_Update_Service_Enabled
+-i Redfish_Software_Inventory_Status_Check
+-i Verify_BMC_Version_Matches_With_FirmwareInventory
+
+# test_bmc_ipv6
+
+-i Get_IPv6_Address_And_Verify
+
+# tests_managers_bmc
+
+-i Verify_Redfish_BMC_Manager_Properties

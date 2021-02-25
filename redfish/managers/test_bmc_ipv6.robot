@@ -134,5 +134,5 @@ Get IPv6 Network Configuration
     ${active_channel_config}=  Get Active Channel Config
     ${resp}=  Redfish.Get  ${REDFISH_NW_ETH_IFACE}${active_channel_config['${CHANNEL_NUMBER}']['name']}
 
-    @{ipv6_network_configurations}=  Get From Dictionary  ${resp.dict}  IPv6StaticAddresses
+    @{ipv6_network_configurations}=  Get From Dictionary  ${resp.dict}  IPv6Addresses
     [Return]  @{ipv6_network_configurations}

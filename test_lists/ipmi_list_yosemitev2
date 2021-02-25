@@ -1,7 +1,3 @@
-#test_ipmi_chassis
-
--i IPMI_Chassis_Status_On
-
 #test_ipmi_cipher
 
 -i Verify_Supported_Ciphers
@@ -16,4 +12,3 @@
 -i Verify_IPMI_SEL_Version
 -i Verify_Empty_SEL
 -i Verify_Add_SEL_Entry
-

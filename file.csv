@@ -1,0 +1,18 @@
+Test Redfish Setup,PASS
+Test REST Setup,PASS
+Test SSH Setup,PASS
+Test IPMI Setup,FAIL
+Verify Fan Sensors Attributes,FAIL
+Verify Power Sensors Attributes,PASS
+Verify Voltage Sensors Attributes,PASS
+Verify Current Sensors Attributes,PASS
+Verify System Inventory Path,PASS
+Test Redfish Setup,PASS
+Test REST Setup,PASS
+Test SSH Setup,PASS
+Test IPMI Setup,FAIL
+Verify Fan Sensors Attributes,FAIL
+Verify Power Sensors Attributes,PASS
+Verify Voltage Sensors Attributes,PASS
+Verify Current Sensors Attributes,PASS
+Verify System Inventory Path,PASS

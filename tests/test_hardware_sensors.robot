@@ -8,8 +8,8 @@ Resource        ../lib/openbmc_ffdc.robot
 Resource        ../lib/ipmi_client.robot
 Variables       ../data/ipmi_raw_cmd_table.py
 
-Suite Setup     Suite Setup Execution
-Test Teardown   Test Teardown Execution
+#Suite Setup     Suite Setup Execution
+#Test Teardown   Test Teardown Execution
 
 *** Test Cases ***
 
