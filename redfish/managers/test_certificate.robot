@@ -97,9 +97,9 @@ Verify Maximum CA Certificate Install
     Install And Verify Certificate Via Redfish  CA  Valid Certificate  error  ${FALSE}
 
 
-Verify Error While Uploding Same CA Certificate
+Verify Error While Uploading Same CA Certificate
     [Documentation]  Verify error while uploading same CA certificate two times.
-    [Tags]  Verify_Error_While_Uploding_Same_CA_Certificate
+    [Tags]  Verify_Error_While_Uploading_Same_CA_Certificate
 
     # Create certificate file for uploading.
     ${cert_file_path}=  Generate Certificate File Via Openssl  Valid Certificate  365
@@ -226,6 +226,30 @@ Verify Not Yet Valid Certificate Replace
     Server       Not Yet Valid Certificate  ok
     Client       Not Yet Valid Certificate  ok
     CA           Not Yet Valid Certificate  ok
+
+
+Verify Certificates Location Via Redfish
+    [Documentation]  Verify the location of certificates via Redfish.
+    [Tags]  Verify_Certificates_Location_Via_Redfish
+
+    ${cert_id}=  Install And Verify Certificate Via Redfish
+    ...  CA  Valid Certificate  ok
+
+    ${resp}=  Redfish.Get  /redfish/v1/CertificateService/CertificateLocations
+    ${Links}=  Get From Dictionary  ${resp.dict}  Links
+
+    ${match_cert}=  Catenate
+    ...  /redfish/v1/Managers/bmc/Truststore/Certificates/${cert_id}
+    ${match}=  Set Variable  ${False}
+
+    FOR  ${Certificates_dict}  IN  @{Links['Certificates']}
+       Continue For Loop If
+       ...  "${Certificates_dict['@odata.id']}}" != "${match_cert}}"
+       ${match}=  Set Variable  ${True}
+    END
+
+    Should Be Equal  ${match}  ${True}
+    ...  msg=Verify the location of certificates via Redfish fail.
 
 
 *** Keywords ***

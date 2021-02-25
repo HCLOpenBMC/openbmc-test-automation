@@ -11,7 +11,7 @@ Variables      ../data/gui_variables.py
 *** Variables ***
 ${obmc_gui_url}              https://${OPENBMC_HOST}
 
-# Default GUI broswer and mode is set to "Firefox" and "headless"
+# Default GUI browser and mode is set to "Firefox" and "headless"
 # respectively here.
 ${GUI_BROWSER}               ff
 ${GUI_MODE}                  headless
@@ -91,7 +91,7 @@ Login GUI
     Input Text  ${xpath_textbox_username}  ${username}
     Input Password  ${xpath_textbox_password}  ${password}
     Click Element  ${xpath_login_button}
-    Wait Until Page Contains  Overview  timeout=30s
+    Wait Until Page Contains  Overview  timeout=60s
 
 
 Logout GUI

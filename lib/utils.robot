@@ -69,7 +69,7 @@ Check If BMC is Up
     # max_timeout   Maximum time to wait.
     #               This should be expressed in Robot Framework's time format
     #               (e.g. "10 minutes").
-    # interfal      Interval to wait between status checks.
+    # interval      Interval to wait between status checks.
     #               This should be expressed in Robot Framework's time format
     #               (e.g. "5 seconds").
 
@@ -691,12 +691,10 @@ Set Auto Reboot Setting
     ...                    1=RetryAttempts
     ...                    0=Disabled
 
-    Run Keyword If  ${REDFISH_SUPPORTED} == ${FALSE}
-    ...    Set Auto Reboot  ${value}
-    ...  ELSE IF  ${REDFISH_REST_SUPPORTED} == ${TRUE}
-    ...    Set Auto Reboot  ${value}
-    ...  ELSE
+    Run Keyword If  ${REDFISH_SUPPORT_TRANS_STATE} == ${1}
     ...    Redfish Set Auto Reboot  ${rest_redfish_dict["${value}"]}
+    ...  ELSE
+    ...    Set Auto Reboot  ${value}
 
 Set Auto Reboot
     [Documentation]  Set the given auto reboot setting.
@@ -822,3 +820,98 @@ Redfish Set Boot Default
     ${resp}=  Redfish.Get Attribute  /redfish/v1/Systems/system  Boot
     Should Be Equal As Strings  ${resp["BootSourceOverrideEnabled"]}  ${override_enabled}
     Should Be Equal As Strings  ${resp["BootSourceOverrideTarget"]}  ${override_target}
+
+
+# Redfish state keywords.
+
+Redfish Get BMC State
+    [Documentation]  Return BMC health state.
+
+    # "Enabled" ->  BMC Ready, "Starting" -> BMC NotReady
+
+    # Example:
+    # "Status": {
+    #    "Health": "OK",
+    #    "HealthRollup": "OK",
+    #    "State": "Enabled"
+    # },
+
+    ${status}=  Redfish.Get Attribute  /redfish/v1/Managers/bmc  Status
+    [Return]  ${status["State"]}
+
+
+Redfish Get Host State
+    [Documentation]  Return host power and health state.
+
+    # Refer: http://redfish.dmtf.org/schemas/v1/Resource.json#/definitions/Status
+
+    # Example:
+    # "PowerState": "Off",
+    # "Status": {
+    #    "Health": "OK",
+    #    "HealthRollup": "OK",
+    #    "State": "StandbyOffline"
+    # },
+
+    ${chassis}=  Redfish.Get Properties  /redfish/v1/Chassis/chassis
+    [Return]  ${chassis["PowerState"]}  ${chassis["Status"]["State"]}
+
+
+Redfish Get Boot Progress
+    [Documentation]  Return boot progress state.
+
+    # Example: /redfish/v1/Systems/system/
+    # "BootProgress": {
+    #    "LastState": "OSRunning"
+    # },
+
+    ${boot_progress}=  Redfish.Get Properties  /redfish/v1/Systems/system/
+    [Return]  ${boot_progress["BootProgress"]["LastState"]}  ${boot_progress["Status"]["State"]}
+
+
+Redfish Get States
+    [Documentation]  Return all the BMC and host states in dictionary.
+
+    # Refer: openbmc/docs/designs/boot-progress.md
+
+    ${session_info}=  Redfish.Get Session Info
+    Log  ${session_info}
+
+    ${bmc_state}=  Redfish Get BMC State
+    ${chassis_state}  ${chassis_status}=  Redfish Get Host State
+    ${boot_progress}  ${host_state}=  Redfish Get Boot Progress
+
+    ${states}=  Create Dictionary
+    ...  bmc=${bmc_state}
+    ...  chassis=${chassis_state}
+    ...  host=${host_state}
+    ...  boot_progress=${boot_progress}
+
+    Log To Console  ${states}
+
+    [Return]  ${states}
+
+
+Is BMC Standby
+    [Documentation]  Check if BMC is ready and host at standby.
+
+    ${standby_states}=  Create Dictionary
+    ...  bmc=Enabled
+    ...  chassis=Off
+    ...  host=Disabled
+    ...  boot_progress=None
+
+    Wait Until Keyword Succeeds  3 min  10 sec  Redfish Get States
+
+    Wait Until Keyword Succeeds  1 min  10 sec  Match State  ${standby_states}
+
+
+Match State
+    [Documentation]  Check if the expected and current states are matched.
+    [Arguments]  ${match_state}
+
+    # Description of argument(s):
+    # match_state      Expected states in dictionary.
+
+    ${current_state}=  Redfish Get States
+    Dictionaries Should Be Equal  ${match_state}  ${current_state}
