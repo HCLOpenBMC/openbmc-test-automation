@@ -38,5 +38,5 @@ Test SSH Setup
 Test IPMI Setup
     [Documentation]  Verify Out-of-band works.
 
-    ${chassis_status}=  Run IPMI Standard Command  chassis status
+    ${chassis_status}=  Run IPMI Standard Command  fru
     Log To Console  \n ${chassis_status}

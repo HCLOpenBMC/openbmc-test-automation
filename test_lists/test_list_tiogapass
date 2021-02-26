@@ -9,3 +9,7 @@
 #test_inventory
 
 -i Verify_System_Inventory_Path
+
+#test_host_Console
+
+-i Verify_SOL_Connection

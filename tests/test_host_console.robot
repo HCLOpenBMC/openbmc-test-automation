@@ -17,9 +17,9 @@ ${HOST_LOG_PATH}       /var/lib/obmc/hostlogs
 
 *** Test Cases ***
 
-Verify Host Console Connection
+Verify SOL Connection
     [Documentation]  Connect the obmc-console from BMC and verify the logs.
-    [Tags]  Verify_Host_Console_Connection
+    [Tags]  Verify_SOL_Connection
 
     Write       obmc-console-client
     Write       \n
@@ -30,18 +30,18 @@ Verify Host Console Connection
     Write       hostname
     Write       exit
 
-    BMC Execute Command  rm -rf ${HOST_LOG_PATH}
-    ${id}  ${stderr}  ${rc}=  BMC Execute Command  ps | grep hostlogger | grep -v grep | cut -c2-5
+#    BMC Execute Command  rm -rf ${HOST_LOG_PATH}
+#    ${id}  ${stderr}  ${rc}=  BMC Execute Command  ps | grep hostlogger | grep -v grep | cut -c2-5
 
     # Flush the messages generated in buffer and store as a log file.
-    BMC Execute Command  kill -s USR1 ${id}
-    Sleep  5s
-    ${gz_file}  ${stderr}  ${rc}=  BMC Execute Command  ls ${HOST_LOG_PATH}
-    BMC Execute Command  gunzip ${HOST_LOG_PATH}/${gz_file}
-    Sleep  5s
-    ${log_file}  ${stderr}  ${rc}=  BMC Execute Command  ls ${HOST_LOG_PATH}
-    ${string_compare} =  BMC Execute Command  grep hostname ${HOST_LOG_PATH}/${log_file}
-    Should Be True  ${string_compare}  hostname
+#    BMC Execute Command  kill -s USR1 ${id}
+#    Sleep  5s
+#    ${gz_file}  ${stderr}  ${rc}=  BMC Execute Command  ls ${HOST_LOG_PATH}
+#    BMC Execute Command  gunzip ${HOST_LOG_PATH}/${gz_file}
+#    Sleep  5s
+#    ${log_file}  ${stderr}  ${rc}=  BMC Execute Command  ls ${HOST_LOG_PATH}
+#    ${string_compare} =  BMC Execute Command  grep hostname ${HOST_LOG_PATH}/${log_file}
+#    Should Be True  ${string_compare}  hostname
 
 
 *** Keywords ***

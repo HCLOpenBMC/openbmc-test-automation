@@ -14,7 +14,7 @@ IPMI Chassis Status On
     ...               using IPMI Get Chassis status command.
     [Tags]  IPMI_Chassis_Status_On
 
-    Redfish Power On  stack_mode=skip  quiet=1
+#    Redfish Power On  stack_mode=skip  quiet=1
     ${resp}=  Run IPMI Standard Command  chassis status
     ${power_status}=  Get Lines Containing String  ${resp}  System Power
     Should Contain  ${power_status}  on
