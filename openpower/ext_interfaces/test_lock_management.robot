@@ -133,8 +133,9 @@ Fail To Release Lock With Invalid TransactionID
     [Tags]  Fail_To_Release_Lock_With_Invalid_TransactionID
     [Template]  Verify Fail To Release Lock With Invalid TransactionID
 
-    # client_id    lock_type    release_lock_type
-    HMCID-01       ReadCase1    Transaction
+    # client_id    lock_type     release_lock_type
+    HMCID-01       ReadCase1     Transaction
+    HMCID-01       WriteCase1    Transaction
 
 
 Fail To Release Multiple Lock With Invalid TransactionID
@@ -146,6 +147,25 @@ Fail To Release Multiple Lock With Invalid TransactionID
     HMCID-01       ReadCase1,ReadCase1,ReadCase1    Transaction
     12345          ReadCase2,ReadCase2,ReadCase2    Transaction
     HMCID          ReadCase3,ReadCase3,ReadCase3    Transaction
+
+
+Fail To Release Multiple Lock With Valid And Invalid TransactionID
+    [Documentation]  Release multiple lock with valid and invalid trasaction.
+    [Tags]  Fail_To_Release_Multiple_Lock_With_Valid_And_Invalid_TransactionID
+    [Template]  Verify Fail To Release Multiple Lock With Valid And Invalid TransactionID
+
+    # client_id    lock_type              release_lock_type
+    HMCID-01       ReadCase1,ReadCase1    Transaction
+
+
+Fail To Release Lock With String As TransactionID Data Type
+    [Documentation]  Fail to release lock with string as transaction id data type.
+    [Tags]  Fail_To_Release_Lock_With_String_As_TransactionID_Data_Type
+    [Template]  Verify Fail To Release Lock With TransactionID As String Type
+
+    # client_id    lock_type     release_lock_type
+    HMCID-01       ReadCase1     Transaction
+    HMCID-01       WriteCase1    Transaction
 
 
 Fail To Release Lock For Another Session
@@ -900,6 +920,76 @@ Verify Fail To Release Multiple Lock With Invalid TransactionID
     ...  ${session_info}  ${trans_id_list}
     ...  release_lock_type=${release_lock_type}  status_code=${HTTP_BAD_REQUEST}
     Release Locks On Resource  ${session_info}  ${trans_id_list}  release_lock_type=Session
+
+    ${trans_id_emptylist}=  Create List
+    Verify Lock On Resource  ${session_info}  ${trans_id_emptylist}
+    Redfish Delete Session  ${session_info}
+
+
+Verify Fail To Release Multiple Lock With Valid And Invalid TransactionID
+    [Documentation]  Verify fail to be release multiple lock with valid and invalid trasaction ID.
+    [Arguments]  ${client_id}  ${lock_type}  ${release_lock_type}
+
+    # Description of argument(s):
+    # client_id          This client id can contain string value
+    #                    (e.g. 12345, "HMCID").
+    # lock_type          Read lock or Write lock.
+    # release_lock_type  The value can be Transaction or Session.
+
+    ${trans_id_list}=  Create List
+    @{lock_type_list}=  Split String  ${lock_type}  ,
+
+    ${session_info}=  Create Redfish Session With ClientID  ${client_id}
+
+    ${trans_id}=  Redfish Post Acquire Lock  ${lock_type_list}[0]
+    Append To List  ${trans_id_list}  ${trans_id}
+
+    ${trans_id}=  Redfish Post Acquire Lock  ${lock_type_list}[1]
+    ${value}=  Get From Dictionary  ${trans_id}  TransactionID
+    ${value}=  Evaluate  ${value} + 10
+    Set To Dictionary  ${trans_id}  TransactionID  ${value}
+    Append To List  ${trans_id_list}  ${trans_id}
+
+    Release Locks On Resource
+    ...  ${session_info}  ${trans_id_list}
+    ...  release_lock_type=${release_lock_type}  status_code=${HTTP_BAD_REQUEST}
+    Release Locks On Resource  ${session_info}  ${trans_id_list}  release_lock_type=Session
+
+    ${trans_id_emptylist}=  Create List
+    Verify Lock On Resource  ${session_info}  ${trans_id_emptylist}
+    Redfish Delete Session  ${session_info}
+
+
+Verify Fail To Release Lock With TransactionID As String Type
+    [Documentation]  Verify fail to be release lock with trasaction ID as string data type.
+    [Arguments]  ${client_id}  ${lock_type}  ${release_lock_type}
+
+    # Description of argument(s):
+    # client_id          This client id can contain string value
+    #                    (e.g. 12345, "HMCID").
+    # lock_type          Read lock or Write lock.
+    # release_lock_type  The value can be Transaction or Session.
+
+    ${trans_id_list}=  Create List
+    @{lock_type_list}=  Split String  ${lock_type}  ,
+
+    ${session_info}=  Create Redfish Session With ClientID  ${client_id}
+
+    ${trans_id}=  Redfish Post Acquire Lock  ${lock_type_list}[0]
+
+    Append To List  ${trans_id_list}  ${trans_id}
+
+    ${temp_trans_id_list}=  Copy Dictionary  ${trans_id_list}  deepcopy=True
+
+    ${value}=  Get From Dictionary  ${trans_id_list}[0]  TransactionID
+    ${value}=  Set Variable  \'${value}\'
+    Set To Dictionary  ${temp_trans_id_list}[0]  TransactionID  ${value}
+
+    Release Locks On Resource
+    ...  ${session_info}  ${temp_trans_id_list}
+    ...  release_lock_type=${release_lock_type}  status_code=${HTTP_BAD_REQUEST}
+
+    Release Locks On Resource  ${session_info}  ${trans_id_list}  release_lock_type=${release_lock_type}
 
     ${trans_id_emptylist}=  Create List
     Verify Lock On Resource  ${session_info}  ${trans_id_emptylist}
