@@ -18,7 +18,7 @@ Test Teardown    Test Teardown Execution
 ${SYSTEM_SHUTDOWN_TIME}    ${5}
 
 # Strings to check from journald.
-${REBOOT_REGEX}    ^\-- Reboot --
+${REBOOT_REGEX}    ^\-- Boot
 
 *** Test Cases ***
 
@@ -52,7 +52,6 @@ Verify Redfish BMC Manager Properties
     Should Be Equal As Strings
     ...  ${resp.dict["Description"]}  Baseboard Management Controller
     Should Be Equal As Strings  ${resp.dict["Id"]}  bmc
-    Should Be Equal As Strings  ${resp.dict["Model"]}  OpenBmc
     Should Be Equal As Strings  ${resp.dict["Name"]}  OpenBmc Manager
     Should Not Be Empty  ${resp.dict["UUID"]}
     Should Be Equal As Strings  ${resp.dict["PowerState"]}  On

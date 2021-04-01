@@ -66,13 +66,16 @@ boot_success = 0
 status_dir_path = os.environ.get('STATUS_DIR_PATH', "")
 if status_dir_path != "":
     status_dir_path = os.path.normpath(status_dir_path) + os.sep
+redfish_support_trans_state = int(os.environ.get('REDFISH_SUPPORT_TRANS_STATE', 0)) or \
+    int(BuiltIn().get_variable_value("${REDFISH_SUPPORT_TRANS_STATE}", default=0))
 redfish_supported = BuiltIn().get_variable_value("${REDFISH_SUPPORTED}", default=False)
 redfish_rest_supported = BuiltIn().get_variable_value("${REDFISH_REST_SUPPORTED}", default=False)
+redfish_delete_sessions = int(BuiltIn().get_variable_value("${REDFISH_DELETE_SESSIONS}", default=1))
 if redfish_supported:
     redfish = BuiltIn().get_library_instance('redfish')
     default_power_on = "Redfish Power On"
     default_power_off = "Redfish Power Off"
-    if redfish_rest_supported:
+    if not redfish_support_trans_state:
         delete_errlogs_cmd = "Delete Error Logs  ${quiet}=${1}"
         delete_bmcdump_cmd = "Delete All BMC Dump"
         default_set_power_policy = "Set BMC Power Policy  ALWAYS_POWER_OFF"
@@ -272,7 +275,7 @@ def initial_plug_in_setup():
                          "status_dir_path", "base_tool_dir_path",
                          "ffdc_list_file_path", "ffdc_report_list_path",
                          "ffdc_summary_list_path", "execdir", "redfish_supported",
-                         "redfish_rest_supported"]
+                         "redfish_rest_supported", "redfish_support_trans_state"]
 
     plug_in_vars = parm_list + additional_values
 
@@ -995,8 +998,9 @@ def test_loop_body():
 
     # This should help prevent ConnectionErrors.
     # Purge all redfish and REST connection sessions.
-    grk.run_key_u("Close All Connections", ignore=1)
-    grk.run_key_u("Delete All Redfish Sessions", ignore=1)
+    if redfish_delete_sessions:
+        grk.run_key_u("Close All Connections", ignore=1)
+        grk.run_key_u("Delete All Redfish Sessions", ignore=1)
 
     return True
 

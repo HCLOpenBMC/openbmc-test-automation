@@ -81,6 +81,9 @@ OBMC_STATES_VERSION = int(os.environ.get('OBMC_STATES_VERSION', 1))
 redfish_support_trans_state = int(os.environ.get('REDFISH_SUPPORT_TRANS_STATE', 0)) or \
     int(BuiltIn().get_variable_value("${REDFISH_SUPPORT_TRANS_STATE}", default=0))
 
+platform_arch_type = os.environ.get('PLATFORM_ARCH_TYPE', '') or \
+    BuiltIn().get_variable_value("${PLATFORM_ARCH_TYPE}", default="power")
+
 # valid_os_req_states and default_os_req_states are used by the os_get_state
 # function.
 # valid_os_req_states is a list of state information supported by the
@@ -254,6 +257,23 @@ else:
                                    ('bmc', '^$'),
                                    ('boot_progress', '^$'),
                                    ('host', '^$')])
+
+# Filter the states based on platform type.
+if platform_arch_type == "x86":
+    default_req_states.remove("operating_system")
+    default_req_states.remove("boot_progress")
+    valid_req_states.remove("operating_system")
+    valid_req_states.remove("boot_progress")
+    del default_state["operating_system"]
+    del default_state["boot_progress"]
+    del standby_match_state["operating_system"]
+    del standby_match_state["boot_progress"]
+    del os_running_match_state["operating_system"]
+    del os_running_match_state["boot_progress"]
+    del master_os_up_match["operating_system"]
+    del master_os_up_match["boot_progress"]
+    del invalid_state_match["operating_system"]
+    del invalid_state_match["boot_progress"]
 
 
 def return_state_constant(state_name='default_state'):
@@ -576,7 +596,10 @@ def get_state(openbmc_host="",
     requested_chassis = ''
     bmc = ''
     requested_bmc = ''
-    boot_progress = ''
+    # BootProgress state will get populated when state logic enumerates the
+    # state URI. This is to prevent state dictionary  boot_progress value
+    # getting empty when the BootProgress is NOT found, making it optional.
+    boot_progress = 'NA'
     operating_system = ''
     host = ''
     requested_host = ''
@@ -608,12 +631,12 @@ def get_state(openbmc_host="",
             " && [ ! -z \"${uptime}\" ] && echo ${uptime}"
         cmd_buf = ["BMC Execute Command",
                    re.sub('\\$', '\\$', remote_cmd_buf), 'quiet=1',
-                   'test_mode=0']
+                   'test_mode=0', 'time_out=5']
         gp.qprint_issuing(cmd_buf, 0)
         gp.qprint_issuing(remote_cmd_buf, 0)
         try:
             stdout, stderr, rc =\
-                BuiltIn().wait_until_keyword_succeeds("10 sec", "0 sec",
+                BuiltIn().wait_until_keyword_succeeds("10 sec", "5 sec",
                                                       *cmd_buf)
             if rc == 0 and stderr == "":
                 uptime = stdout
@@ -669,6 +692,12 @@ def get_state(openbmc_host="",
                     # /xyz/openbmc_project/state/hypervisor0
                     if "hypervisor0" in url_path:
                         continue
+
+                    if platform_arch_type == "x86":
+                        # Skip conflicting "CurrentPowerState" URL from the enum
+                        # /xyz/openbmc_project/state/chassis_system0
+                        if "chassis_system0" in url_path:
+                            continue
 
                     for attr_name in ret_values[url_path]:
                         # Create a state key value based on the attr_name.

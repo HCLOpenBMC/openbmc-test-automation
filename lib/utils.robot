@@ -871,11 +871,11 @@ Redfish Get Boot Progress
 
 Redfish Get States
     [Documentation]  Return all the BMC and host states in dictionary.
+    [Timeout]  30 Seconds
 
     # Refer: openbmc/docs/designs/boot-progress.md
 
-    ${session_info}=  Redfish.Get Session Info
-    Log  ${session_info}
+    Redfish.Login
 
     ${bmc_state}=  Redfish Get BMC State
     ${chassis_state}  ${chassis_status}=  Redfish Get Host State
@@ -887,7 +887,9 @@ Redfish Get States
     ...  host=${host_state}
     ...  boot_progress=${boot_progress}
 
-    Log  ${states}
+    # Disable loggoing state to prevent huge log.html record when boot
+    # test is run in loops.
+    #Log  ${states}
 
     [Return]  ${states}
 
