@@ -9,7 +9,7 @@ Library           utils.py
 Library           gen_misc.py
 Library           var_funcs.py
 Resource          rest_response_code.robot
-
+Library           RequestsLibrary
 *** Variables ***
 # Assign default value to QUIET for programs which may not define it.
 ${QUIET}  ${0}
