@@ -1,6 +1,6 @@
 #test_ipmi_cipher
 
--i Verify_Supported_Ciphers
+#-i Verify_Supported_Ciphers
 
 #test_ipmi_network_verification
 
